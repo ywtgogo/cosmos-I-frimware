@@ -10,6 +10,9 @@
 #include "dicor_update.h"
 
 const SHELL_COMMAND_STRUCT Shell_commands[] = {  
+	{ "time", Shell_get_time },
+	{ "getzone", Shell_get_zone},
+	{ "setzone", Shell_set_zone},
 	{ "reboot", Shell_reboot },
 	{ "kill", Shell_kill	},
 	{ "pregtable", Shell_pregtable },
@@ -32,8 +35,11 @@ const SHELL_COMMAND_STRUCT Shell_commands[] = {
     { "setrtc",    Shell_setrtc },
     { "getuid",    Shell_getuid },      
     { "setuid",    Shell_setuid },
-    { "setdatacenter",	Shell_setdatacenter},
-    { "poweroff",    Shell_poweroff },  
+    { "setdatacenter",	Shell_setdatacenter},//DEFAULT
+    { "setdataport",	Shell_setport},
+    { "setipser",		Shell_setdatacenter},//MUX	
+    { "setipport", 		Shell_setport},
+    { "poweroff",    	Shell_poweroff },  
     { "gethardversion",    Shell_gethardversion },      
     { "sethardversion",    Shell_sethardversion },
     { "getsoftversion",    Shell_getsoftversion },

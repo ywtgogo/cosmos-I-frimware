@@ -41,19 +41,72 @@ extern UINT_8 SERVER_MODE;
 *
 *END*---------------------------------------------------------------------*/
 
+int_32 Shell_get_time()
+{
+	//print_rtc_time();
+	print_sys_time();
+	print_rtc_time();
+	return	SHELL_EXIT_SUCCESS;
+}
+
+int_32 Shell_get_zone()
+{
+	printf("\nZone: %d\n", (signed char)pBaseConfig->zone);
+	return	SHELL_EXIT_SUCCESS;
+}
+
+int_32 Shell_set_zone(int_32 argc, char_ptr argv[])
+{
+	extern void dicor_get_timer(void);
+	boolean print_usage, shorthelp = FALSE;
+	int_32 return_code = SHELL_EXIT_SUCCESS;
+	unsigned char writebuf[WRITEBUFSIZE];
+	BASECONFIGTABLE_PTR baseconfig;
+	baseconfig = (BASECONFIGTABLE_PTR) writebuf;
+	
+	print_usage = Shell_check_help_request(argc, argv, &shorthelp);
+	if (!print_usage) {
+		if (argc != 2) {
+			printf("Error, invalid number of parameters\n");
+			return_code = SHELL_EXIT_ERROR;
+			print_usage = TRUE;
+		} else {
+			if (argc == 2) {
+				if (atoi(&argv[1][1]) <= 12)
+				{
+					baseconfig->zone = atoi(&argv[1][0]);//argv[1][1]-0x30;
+				}
+				else
+				{
+					printf("invalid zone! range: -12 <-> +12 \n");//invalid
+				}
+				printf("\nnzone: %d\n", (signed char)baseconfig->zone);			
+				EepromWrite(&baseconfig->zone, sizeof(BASECONFIGTABLE)-1, 1);
+				dicor_get_timer();
+			}
+		}
+	}
+	if (print_usage) {
+		if (shorthelp) {
+			printf("%s <zone>\n", argv[0]);
+		} else {
+			printf("Usage: %s <zone>\n", argv[0]);
+			printf("   <zone> = +n/-n\n");
+		}
+	}
+	return return_code;	
+}
+
 int_32 Shell_setuid(int_32 argc, char_ptr argv[])
 {
 	boolean print_usage, shorthelp = FALSE;
 	int_32 return_code = SHELL_EXIT_SUCCESS;
 
-	char hex[3];
+	int_32 uid[3];
 	unsigned char writebuf[WRITEBUFSIZE];
 	BASECONFIGTABLE_PTR baseconfig;
 
 	baseconfig = (BASECONFIGTABLE_PTR) writebuf;
-
-
-	hex[2] = '\0';
 
 	print_usage = Shell_check_help_request(argc, argv, &shorthelp);
 
@@ -64,34 +117,13 @@ int_32 Shell_setuid(int_32 argc, char_ptr argv[])
 			print_usage = TRUE;
 		} else {
 			if (argc == 2) {
-				hex[0] = argv[1][0];
-				hex[1] = argv[1][1];
-				strupr(hex);
-				baseconfig->uid[0] = ahextoi(hex);
+				sscanf ((&argv[1][0]), "%02x-%02x-%02x-%02x", uid, uid+1, uid+2, uid+3 );
+				baseconfig->uid[0] = uid[0];
+				baseconfig->uid[1] = uid[1];
+				baseconfig->uid[2] = uid[2];
+				baseconfig->uid[3] = uid[3];
 				
-				hex[0] = argv[1][3];
-				hex[1] = argv[1][4];
-				strupr(hex);
-				baseconfig->uid[1] = ahextoi(hex);
-				
-				hex[0] = argv[1][6];
-				hex[1] = argv[1][7];
-				strupr(hex);
-				baseconfig->uid[2] = ahextoi(hex);
-				
-				hex[0] = argv[1][9];
-				hex[1] = argv[1][10];
-				strupr(hex);
-				baseconfig->uid[3] = ahextoi(hex);
-				
-				//写入FLASH中
 				EepromWrite(&baseconfig->uid[0], 12, 4);
-				printf("请务必确保修改的UID唯一，不能有冲突！\n");
-				printf("现场从小端开始使用，测试从最大端开始使用！\n");
-				printf("UID的设置规则为：\n");
-				printf("2X-XX-XX-XX\n");
-				printf("4个字节，八个十六进制字符。其中上面的X代表'0'-'9'和'A'-'F'的任意十六进制字符\n");
-				printf("需严格按照这种格式来书写，多一个字符或者少个字符都不行\n");
 			}
 		}
 	}
@@ -542,7 +574,7 @@ int_32 Shell_wbaseconfig(int_32 argc, char_ptr argv[])
 
 	BASECONFIGTABLE_PTR baseconfig;
 	unsigned char *writebuf;
-	writebuf = (unsigned char *) _mem_alloc_zero_from(_user_pool_id, 512);
+	writebuf = (unsigned char *) _mem_alloc_zero_from(_user_pool_id, 512);//512  2015-01-12
     if (writebuf == NULL)
     {
     	printf("error when mem alloc\r\n");	
@@ -954,7 +986,7 @@ int_32 Shell_wbaseconfig(int_32 argc, char_ptr argv[])
 				baseconfig->rfpower = 4;
 			}
 			fclose(fd_ptr);
-			EepromWrite(&baseconfig->dhcp, 16, WRITEBUFSIZE-16);
+			EepromWrite(&baseconfig->dhcp, 16, WRITEBUFSIZE-16-1);
 		}
 	}
 	if (print_usage) {
@@ -1437,9 +1469,121 @@ int_32 Shell_setdatacenter(int_32 argc, char_ptr argv[])
 	}
 	if (print_usage) {
 		if (shorthelp) {
-			printf("%s \n", argv[0]);
+			printf("%s <datacenter>\n", argv[0]);
 		} else {
-			printf("Usage: %s \n", argv[0]);
+			printf("Usage: %s <datacenter>\n", argv[0]);
+			printf("   <datacenter> = X.X.X.X\n");
+		}
+	}
+	return return_code;
+}
+
+int_32 Shell_setport(int_32 argc, char_ptr argv[])
+{
+	boolean print_usage, shorthelp = FALSE;
+	int_32 return_code = SHELL_EXIT_SUCCESS;
+
+	uint_32 ipport;
+	unsigned char writebuf[WRITEBUFSIZE];
+	BASECONFIGTABLE_PTR baseconfig;
+
+	baseconfig = (BASECONFIGTABLE_PTR) writebuf;
+	print_usage = Shell_check_help_request(argc, argv, &shorthelp);
+
+	if (!print_usage) {
+		if (argc != 2) {
+			printf("Error, invalid number of parameters\n");
+			return_code = SHELL_EXIT_ERROR;
+			print_usage = TRUE;
+		} else {  				
+			ipport = atoi(&argv[1][0]);
+			baseconfig->ipport[0] = (uint_8) (ipport >> 24);
+			baseconfig->ipport[1] = (uint_8) (ipport >> 16);
+			baseconfig->ipport[2] = (uint_8) (ipport >> 8);
+			baseconfig->ipport[3] = (uint_8) (ipport);
+			EepromWrite(&baseconfig->ipport[0], 240, 4);
+		}
+	}
+	if (print_usage) {
+		if (shorthelp) {
+			printf("%s <dataport>\n", argv[0]);
+		} else {
+			printf("Usage: %s <dataport>\n", argv[0]);
+			printf("   <dataport> = xxxxx\n");			
+		}
+	}
+	return return_code;
+}
+
+int_32 Shell_setdatacentermux(int_32 argc, char_ptr argv[])
+{
+	boolean print_usage, shorthelp = FALSE;
+	int_32 return_code = SHELL_EXIT_SUCCESS;
+
+	uint_32 ipaddr[4];
+	unsigned char writebuf[WRITEBUFSIZE];
+	BASECONFIGTABLE_PTR baseconfig;
+
+	baseconfig = (BASECONFIGTABLE_PTR) writebuf;
+	print_usage = Shell_check_help_request(argc, argv, &shorthelp);
+
+	if (!print_usage) {
+		if (argc != 2) {
+			printf("Error, invalid number of parameters\n");
+			return_code = SHELL_EXIT_ERROR;
+			print_usage = TRUE;
+		} else {  			
+			sscanf ((&argv[1][0]), "%3d.%3d.%3d.%3d", ipaddr, ipaddr+1, ipaddr+2, ipaddr+3 );
+			baseconfig->datacenter[0] = ipaddr[0];
+			baseconfig->datacenter[1] = ipaddr[1];
+			baseconfig->datacenter[2] = ipaddr[2];
+			baseconfig->datacenter[3] = ipaddr[3];
+			EepromWrite(&baseconfig->datacenter[0], 244, 4);
+		}
+	}
+	if (print_usage) {
+		if (shorthelp) {
+			printf("%s <ipser>\n", argv[0]);
+		} else {
+			printf("Usage: %s <ipser>\n", argv[0]);
+			printf("   <ipser> = X.X.X.X\n");
+		}
+	}
+	return return_code;
+}
+
+int_32 Shell_setportmux(int_32 argc, char_ptr argv[])
+{
+	boolean print_usage, shorthelp = FALSE;
+	int_32 return_code = SHELL_EXIT_SUCCESS;
+
+	uint_32 ipport;
+	unsigned char writebuf[WRITEBUFSIZE];
+	BASECONFIGTABLE_PTR baseconfig;
+
+	baseconfig = (BASECONFIGTABLE_PTR) writebuf;
+	print_usage = Shell_check_help_request(argc, argv, &shorthelp);
+
+	if (!print_usage) {
+		if (argc != 2) {
+			printf("Error, invalid number of parameters\n");
+			return_code = SHELL_EXIT_ERROR;
+			print_usage = TRUE;
+		} else {  				
+			ipport = atoi(&argv[1][0]);
+			baseconfig->ipport[0] = (uint_8) (ipport >> 24);
+			baseconfig->ipport[1] = (uint_8) (ipport >> 16);
+			baseconfig->ipport[2] = (uint_8) (ipport >> 8);
+			baseconfig->ipport[3] = (uint_8) (ipport);
+			EepromWrite(&baseconfig->ipport[0], 248, 4);
+		}
+	}
+	if (print_usage) {
+		if (shorthelp) {
+			printf("%s <ipport>\n", argv[0]);
+		} else {
+			printf("Usage: %s <ipport>\n", argv[0]);
+			printf("   <ipport> = xxxxx\n");			
 		}
 	}
 	return return_code;

@@ -16,6 +16,64 @@
 #include "utility.h"
 #include <string.h>
 #include <math.h>
+#include <mqx.h>
+#include <bsp.h>
+
+/*   Function Code       */
+void print_sys_time
+(
+    void
+)
+{ /* Body*/
+    TIME_STRUCT  	ts;
+    DATE_STRUCT  	tm;
+	
+	uint32_t		sys_time;
+	TIME_STRUCT		mqx_time;
+	
+	_time_get(&mqx_time);
+	sys_time = mqx_time.SECONDS;
+	
+    ts.SECONDS = sys_time;
+    ts.MILLISECONDS = 0;
+    /* Convert rtc_time to date format */
+    if (_time_to_date(&ts, &tm) == FALSE ) {
+        printf("\n Cannot convert mqx_time to date format");
+        //_task_block();
+    }
+    printf("\n (SYS) Current time is: %4d-%.2d-%.2d %.2d:%.2d:%.2d ",
+            //_days_abbrev[tm.WDAY],
+            //_months_abbrev[tm.MONTH - 1],
+		   	tm.YEAR,
+			tm.MONTH,
+            tm.DAY,
+            tm.HOUR,
+            tm.MINUTE,
+            tm.SECOND
+            );
+} /* Endboy*/
+
+void print_rtc_time
+(
+    void
+)
+{ /* Body*/
+    TIME_STRUCT  	ts;
+    DATE_STRUCT  	tm;
+	
+	RTC_TIME_STRUCT time_rtc;
+	_rtc_get_time(&time_rtc);
+	_rtc_time_to_mqx_time(&time_rtc, &ts);
+    _time_to_date(&ts, &tm);
+    printf("\n (RTC) Current time is: %4d-%.2d-%.2d %.2d:%.2d:%.2d ",
+		   	tm.YEAR,
+			tm.MONTH,
+            tm.DAY,
+            tm.HOUR,
+            tm.MINUTE,
+            tm.SECOND
+            );
+} /* Endboy*/
 
 //Сдת��д
 void strupr(char *s)

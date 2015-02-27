@@ -69,6 +69,7 @@ int_32 MAGNUS_LOAD_PREAMBLE_Command(uint_16 addr_f,uint_16 addr_r,uint_8* data_b
 unsigned short Modbus_calcrc16(unsigned char *buf, unsigned short len); 
 int_32 SEND_INFO_DEL(uint_16 id, uint_8 cmd, uint_8 state);
 int_8 DETECT_MESAGE_TIME_OUT_Command(uint_8* data_buffer,uint_8 len,uint_16 delay_time,uint_16 addr);
+int_8 DETECT_POLL_TIME_OUT_Command(uint_8* data_buffer,uint_8 len,uint_16 delay_time,uint_16 addr);
 int_32 DETECT_ISP_CMD(uint_8 *w_buf, uint_16 len_buf, uint_16 re_delay, uint_8 re_wtimes);
 //int_8 DETECT_MESAGE_TIME_OUT_Command_short(uint_8* data_buffer,uint_8 len);
 #endif

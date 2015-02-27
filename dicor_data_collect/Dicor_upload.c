@@ -67,7 +67,7 @@ UINT_8 FirstPackage = 0;
 
 UINT_8	SERVER_MODE;
 extern uchar CoodAddr;
-
+extern uchar Pulldown_Cc2530_flag;
 //第三方设备相关变量
 //LWSEM_STRUCT ThirdDevDataSem;
 //uint_8 ThirdDevDataFlag;
@@ -202,6 +202,9 @@ void UpLoadbuffer_init(void)
 		printf("error mem create pool!\r\n");
 	}
 	
+	printf("wo kao !!!\n");
+	RepairModeInit();
+	
 	EepromInit();
 	PrintInfo();
 	LedInit(); // 3.12 test
@@ -335,22 +338,29 @@ static UINT_32 dicor_process_DiMo_packet(uint_32 sock)
 	uint_8 UpdateChkComplete = 0;
 	uint_32 error;
 	_task_id taskid;
-//	uint_16 i;
+	
 	_mem_zero(Dimo_response_data.Data_Buffer, sizeof(Dimo_response_data.Data_Buffer));
 	length = recv(sock, (char_ptr) (&Dimo_response_data.Dicor_UID[0]), sizeof(DIMO_RES_DATA), 0);
 
 		if (length == RTCS_ERROR) {
 			if (sock == upload_buffer.sock_mux)
 			{
-#if	1						
-				if (mux_error++ >1000)
+#if	1
+				//if (mux_error % 100 == 0)
+				//	printf("\nsock接收错误\n");
+				mux_error++;				
+				if (mux_error > 5000)
 				{
+					//printf("\nsock连接第二路\n");
 					if (SERVER_MODE == 2)
+					{
+						shutdown(sock, FLAG_ABORT_CONNECTION);
 						dicor_connect_datacentermux();	
-						mux_error = 0;
+					}	
+					mux_error = 0;
+					printf("\n___________________________\n");
 				}
-			//	printf("\n___________________________\n");
-#endif								
+#endif
 				return ;	
 			}
 			
@@ -544,6 +554,7 @@ static UINT_32 dicor_process_DiMo_packet(uint_32 sock)
 				    break;
 */
 			    case 0x05:	
+			    dicor_kill_task("dicor_third_device_task");
 			   DEBUG_DIS(printf("\n download Cosmos Code.S19\n"));
 			   {
 
@@ -554,10 +565,10 @@ static UINT_32 dicor_process_DiMo_packet(uint_32 sock)
 	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
 	           Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
 	           Dimo_ht_data.state=0x00;
-			if (SERVER_MODE == 2)
-				error = send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),sizeof(DIMO_HT_DATA), 0); 
-	         error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),sizeof(DIMO_HT_DATA), 0); 
-		       Dicor_Update(); 
+			//if (SERVER_MODE == 2)
+			//	error = send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),sizeof(DIMO_HT_DATA), 0); 
+	         	Dicor_Update(); 
+				error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),sizeof(DIMO_HT_DATA), 0); 
 
 			   }
 		
@@ -593,6 +604,22 @@ static UINT_32 dicor_process_DiMo_packet(uint_32 sock)
 			case 0x08:	
 				DEBUG_DIS(printf("\n regtable Fback to Cosmos\n "));
 				break;
+			case 0x09:	
+				dicor_kill_task("dicor_third_device_task");
+				printf("\n reset CC2530 by CMD\n ");
+//				fclose(rs485_dev);
+//				fflush(rs485_dev); 
+				printf("\nfile=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
+				Pulldown_Cc2530_flag = 1;					
+				GPIO_PULLDOWN();
+				_time_delay(30000);		
+				RESET_CC2530();
+				_time_delay(30000);						
+				N_RESET_CC2530();
+				_time_delay(5000);
+				Pulldown_Cc2530_flag = 0;	
+				taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);												
+				break;				
 			default:
 				break;			    
 			}
@@ -604,330 +631,181 @@ static UINT_32 dicor_process_DiMo_packet(uint_32 sock)
 	
 		case 0x01:
 			DEBUG_DIS(printf("\n Magnus's packet"));
-				switch(Dimo_response_data.pack_type)
-				{
+			switch(Dimo_response_data.pack_type)
+			{
 			
-
 				case 0x31:
-				 DEBUG_DIS(printf("\n begin to  magnus-bootloader"));
-				 
-				 //Dimo_response_data.role = 0x01;
-		
-			 
-			   	dicor_kill_task("dicor_third_device_task");
-			   	//	 _watchdog_start(10*60000);
-			   {
-			   
-			  char MagnusFileName[100] = 
-                            {
-                           	'\0'
-                            };
-	boolean  print_usage, shorthelp = TRUE;
-	int_32   return_code = SHELL_EXIT_SUCCESS;
-	int_32 argc=3; 
-	char_ptr argv[4];
-	uint_16 addr_f,addr_r;
- 	char hex[3]; 
-	unsigned char *didiflash;
-    EEPROMDATA_PTR p;
-    uint_8* data_buffer;
-	data_buffer = Dimo_response_data.Data_Buffer;	 
-	p = (EEPROMDATA_PTR) base_addr;
-   	hex[2] = '\0';
+					DEBUG_DIS(printf("\n begin to  magnus-bootloader"));
+					dicor_kill_task("dicor_third_device_task");
+					{
 
-
-		if (argc == 3)  
-		{	
-	
-			printf("magnus addr_f=%04X addr_r=%04X", addr_f, addr_r);
-
-			
-			StopGetData();
-	
-			
-			strcpy(MagnusFileName, "d:\\didiprogram\\magnus.hex");
-	
-			{
-			   //send begin command
-			  	//测试申请外部内存
-				didiflash = (unsigned char *) _mem_alloc_zero_from(_user_pool_id, BOOT_DIDIPROGRAMABLESIZE_MAGNUS);
-				if (didiflash == NULL)
-				{
-					printf("error when mem alloc magnusflash buf\r\n");	
-					return -1;
-				}
-				//先用TFTP下载程序到SD卡中
-				
-				printf("正在从SD卡中载入magnus程序文件到内存并解析，请稍等...\n");
-				if (Boot_AnalysisHEX(MagnusFileName, didiflash, data_buffer)==1)
-		
-				{
+						char MagnusFileName[100] = {'\0'};
+						boolean  print_usage, shorthelp = TRUE;
+						int_32   return_code = SHELL_EXIT_SUCCESS;
+						int_32 argc=3; 
+						char_ptr argv[4];
+						uint_16 addr_f,addr_r;
+						char hex[3]; 
+						unsigned char *didiflash;
+						EEPROMDATA_PTR p;
+						uint_8* data_buffer;
+						data_buffer = Dimo_response_data.Data_Buffer;	 
+						p = (EEPROMDATA_PTR) base_addr;
+						hex[2] = '\0';
+						if (argc == 3)  
+						{	
 					
-					printf("载入DiDi程序文件[%s]到内存完成，并解析成功！\n",MagnusFileName);
-				}
-				else 
-				{
-					printf("error when analysis didi program file\n");
-					printf("载入或解析DiDi程序文件出错，请用ls,dir等命令检查程序文件[%s]是否存在或格式是否正确！\n", MagnusFileName);
-				}
-				_mem_free(didiflash);
-			}
-		}
-		else  
-		{
-			printf("Error, %s invoked with incorrect number of arguments\n", argv[0]);
-			print_usage = TRUE;
-		}
+							printf("magnus addr_f=%04X addr_r=%04X", addr_f, addr_r);
 
-//		taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
-
-			return return_code;
-	
-			 }
-			 break;
-			 /*
-			 	case 0x21:
-				 DEBUG_DIS(printf("\n begin to  optimus-bootloader"));
-				 
-				 //Dimo_response_data.role = 0x01;
-		
-			   	dicor_kill_task("dicor_third_device_task");
-			   	//	 _watchdog_start(10*60000);
-			   {
-			   
-			   
-			  char OptimusFileName[100] = 
-                            {
-                           	'\0'
-                            };
-	boolean  print_usage, shorthelp = TRUE;
-	int_32   return_code = SHELL_EXIT_SUCCESS;
-	int_32 argc=3; 
-	char_ptr argv[4];
-	uint_8  i;
-	uint_8  len;
-	uint_16 addr_f,addr_r;
- 	char hex[3]; 
-	unsigned char *didiflash;
-	//TIME_STRUCT time1, time2;
-	//uint_32 dt;
-//	uint_32 minute, second, mil;
-    EEPROMDATA_PTR p;
-    //uint_8* data_buffer;
-    uint_8* data_buffer;
-	data_buffer = Dimo_response_data.Data_Buffer;	 
-	p = (EEPROMDATA_PTR) base_addr;
-   	hex[2] = '\0';
-
-
-		if (argc == 3)  
-		{	
-	
-			printf("Optimus addr_f=%04X addr_r=%04X", addr_f, addr_r);
-
-			
-			StopGetData();
-	
-			
-			strcpy(OptimusFileName, "d:\\didiprogram\\8245V1.0.S");
-	
-			{
-			   //send begin command
-			  	//测试申请外部内存
-					didiflash = (unsigned char *) _mem_alloc_zero_from(_user_pool_id, BOOT_DIDIPROGRAMABLESIZE_MAGNUS);
-					if (didiflash == NULL)
-					{
-						printf("error when mem alloc magnusflash buf\r\n");	
-						return -1;
-					}
-					//先用TFTP下载程序到SD卡中
+							
+							StopGetData();
 					
-					printf("正在从SD卡中载入magnus程序文件到内存并解析，请稍等...\n");
-				if (!Boot_AnalysisSRecord_8245(OptimusFileName, didiflash,data_buffer))
-			
-					{
-						
-						printf("载入DiDi程序文件[%s]到内存完成，并解析成功！\n",OptimusFileName);
-					//	_time_get(&time1);
-		
-					}
-					else
-					{
-						printf("error when analysis didi program file\n");
-						printf("载入或解析DiDi程序文件出错，请用ls,dir等命令检查程序文件[%s]是否存在或格式是否正确！\n", OptimusFileName);
-					}
-					_mem_free(didiflash);
-		
+							
+							strcpy(MagnusFileName, "d:\\didiprogram\\magnus.hex");
+					
+							{
+							   //send begin command
+							  	//测试申请外部内存
+								didiflash = (unsigned char *) _mem_alloc_zero_from(_user_pool_id, BOOT_DIDIPROGRAMABLESIZE_MAGNUS);
+								if (didiflash == NULL)
+								{
+									printf("error when mem alloc magnusflash buf\r\n");	
+									return -1;
+								}
+								//先用TFTP下载程序到SD卡中								
+								printf("正在从SD卡中载入magnus程序文件到内存并解析，请稍等...\n");
+								if (Boot_AnalysisHEX(MagnusFileName, didiflash, data_buffer)==1)						
+								{
+									
+									printf("载入DiDi程序文件[%s]到内存完成，并解析成功！\n",MagnusFileName);
+								}
+								else 
+								{
+									printf("error when analysis didi program file\n");
+									printf("载入或解析DiDi程序文件出错，请用ls,dir等命令检查程序文件[%s]是否存在或格式是否正确！\n", MagnusFileName);
+								}
+								_mem_free(didiflash);
+							}
 						}
-			
-		} 
-		else  
-		{
-			printf("Error, %s invoked with incorrect number of arguments\n", argv[0]);
-			print_usage = TRUE;
-		}
+						else  
+						{
+							printf("Error, %s invoked with incorrect number of arguments\n", argv[0]);
+							print_usage = TRUE;
+						}
+				//		taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
+						return return_code;
+					}
+					break;
 
-	
-
-	return return_code;
-			   
-			  
-			   Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
-	           Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
-	           Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
-	           Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
-	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
-	           Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
-	           Dimo_ht_data.state=0x00;
-	         error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
-		    sizeof(DIMO_HT_DATA), 0);  	
-			 
-			   }
-			    	 break;
-			    	 
-				case 0x47:
-			   DEBUG_DIS(printf("\n set magnus frequency"));
-			    {
-			  uint_16 addr;	
-			  uint_8* data_buffer;
-			  data_buffer = Dimo_response_data.Data_Buffer;
-			  SET_MAGNUS_ROLE_Command(addr, data_buffer);
-			    }
-			   Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
-	           Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
-	           Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
-	           Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
-	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
-	           Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
-	           Dimo_ht_data.state=0x00;
-	         error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
-		    sizeof(DIMO_HT_DATA), 0);    
-			  
-			    break;
-			    */
 			    case 0x66:
-			  DEBUG_DIS(printf("\n set FFD table\n"));
-			  //	dicor_kill_task("dicor_third_device_task");
-			  
-			  {
-			  uint_16 addr;	
-			  uint_8* data_buffer;
-			
-			  data_buffer = Dimo_response_data.Data_Buffer;
-			addr = (uint_16)data_buffer[2];
-            addr = addr << 8;
-            addr = addr & 0xFF00 ;
-            addr|= data_buffer[3];
-			  //addr = (Dimo_response_data.data_buffer[0]<<8)+Dimo_response_data.data_buffer[1];
-			 SET_FFD_TABLE_Command(addr, data_buffer); 
-			  }
-			  /*
-			   Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
-	           Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
-	           Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
-	           Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
-	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
-	           Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
-	           Dimo_ht_data.state=0x00;
-	         error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
-		    sizeof(DIMO_HT_DATA), 0);  
-		    */  
+					DEBUG_DIS(printf("\n set FFD table\n"));
+
+					{
+						uint_16 addr;	
+						uint_8* data_buffer;
+
+						data_buffer = Dimo_response_data.Data_Buffer;
+						addr = (uint_16)data_buffer[2];
+						addr = addr << 8;
+						addr = addr & 0xFF00 ;
+						addr|= data_buffer[3];
+						SET_FFD_TABLE_Command(addr, data_buffer); 
+					}
+					/*
+					Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
+					Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
+					Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
+					Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
+					Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+					Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
+					Dimo_ht_data.state=0x00;
+					error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
+					sizeof(DIMO_HT_DATA), 0);  
+					*/  
 			    break;  
 			    
 			   	case 0x04:
-			   	dicor_kill_task("dicor_third_device_task");
-			   	_time_delay(2000);
-			  DEBUG_DIS(printf("\n COLECT RFD DATA"));
-			  {
-			  uint_16 addr,readstart,readlen;	
-			  uint_8* data_buffer;
-			  uint_8 result;
-			  //uint_16 addr1;
-			  // uint_32 period;
-			  //void *ptr;
-			  data_buffer = Dimo_response_data.Data_Buffer;
-			  result=Modbus_SendReadRegCommand(addr,data_buffer,readstart,readlen);
-			  // addr1=(uint_16)Dimo_response_data.Data_Buffer[2]+Dimo_response_data.Data_Buffer[3];
-			  // period =600;
-			  // register_device_Gateway(addr1,period);
-			  }
-			  	_time_delay(2000);
-			   taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
-			   _time_delay(1000);
-			   /*
-			   Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
-	           Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
-	           Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
-	           Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
-	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
-	           Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
-	           Dimo_ht_data.state=0x00;
-	         error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
-		    sizeof(DIMO_HT_DATA), 0);   
-		       */
-			    break;  
+					dicor_kill_task("dicor_third_device_task");
+					_time_delay(2000);
+					DEBUG_DIS(printf("\n COLECT RFD DATA"));
+					{
+						uint_16 addr,readstart,readlen;	
+						uint_8* data_buffer;
+						uint_8 result;
+						data_buffer = Dimo_response_data.Data_Buffer;
+						result=Modbus_SendReadRegCommand(addr,data_buffer,readstart,readlen);
+					}
+					_time_delay(2000);
+					taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
+					_time_delay(1000);
+					/*
+					Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
+					Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
+					Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
+					Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
+					Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+					Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
+					Dimo_ht_data.state=0x00;
+					error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
+					sizeof(DIMO_HT_DATA), 0);   
+					*/
+			    	break;  
 			   
 			   	case 0x45:
 			  		DEBUG_DIS(printf("\n let  FFD bind RFD\n"));
-			  //	dicor_kill_task("dicor_third_device_task");
-			  
-			  	{
-			  		uint_16 addr;	
-			  		uint_8* data_buffer;
-			  		data_buffer = Dimo_response_data.Data_Buffer;
-			  		addr = (uint_16)data_buffer[2];
-                 addr = addr<< 8;
-            addr = addr & 0xFF00 ;
-            addr|= data_buffer[3];
-			 		FFD_BIND_RFD_Command(addr, data_buffer); 
-			 	//	TURN_ON_Command(addr, data_buffer); 
-			 	
-			 	
-			  	} 
-			  	_time_delay(2000);
-			   taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
-			   _time_delay(1000);
-			  /*
-			    Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
-	           Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
-	           Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
-	           Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
-	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
-	           Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
-	           Dimo_ht_data.state=0x00;
-	         error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
-		    sizeof(DIMO_HT_DATA), 0);   
-		    */ 
-			    break;  
+				  	{
+						uint_16 addr;	
+						uint_8* data_buffer;
+						data_buffer = Dimo_response_data.Data_Buffer;
+						addr = (uint_16)data_buffer[2];
+						addr = addr<< 8;
+						addr = addr & 0xFF00 ;
+						addr|= data_buffer[3];
+						FFD_BIND_RFD_Command(addr, data_buffer); 				 					 	
+				  	}
+					_time_delay(2000);
+					taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
+					//_time_delay(5000);
+					/*
+					Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
+					Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
+					Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
+					Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
+					Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+					Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
+					Dimo_ht_data.state=0x00;
+					error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
+					sizeof(DIMO_HT_DATA), 0);   
+					*/ 
+			    	break;  
 			    
 			    case 0x42:
-			  DEBUG_DIS(printf("\n let FFD start collect data"));
-			    	dicor_kill_task("dicor_third_device_task");
-			 
-			  {
-			  uint_16 addr;	
-			  uint_8* data_buffer;
-			  data_buffer = Dimo_response_data.Data_Buffer;
-			addr = (uint_16)data_buffer[2];
-            addr = addr << 8;
-            addr = addr & 0xFF00 ;
-            addr|= data_buffer[3];
-			 SW_Command(addr, data_buffer); 
-			  } 
-			   _time_delay(2000);
-			   taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
-			   _time_delay(1000);
-			   /*	 
-			   Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
-	           Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
-	           Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
-	           Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
-	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
-	           Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
-	           Dimo_ht_data.state=0x00;
-	         error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
-		    sizeof(DIMO_HT_DATA), 0);  
-		      */
+					DEBUG_DIS(printf("\n let FFD start collect data"));
+					dicor_kill_task("dicor_third_device_task");
+					{
+						uint_16 addr;	
+						uint_8* data_buffer;
+						data_buffer = Dimo_response_data.Data_Buffer;
+						addr = (uint_16)data_buffer[2];
+						addr = addr << 8;
+						addr = addr & 0xFF00 ;
+						addr|= data_buffer[3];
+						SW_Command(addr, data_buffer); 
+					} 
+					_time_delay(2000);
+					taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
+					_time_delay(1000);
+					/*	 
+					Dimo_ht_data.Dicor_UID[0]= Dimo_response_data.Dicor_UID[0];
+					Dimo_ht_data.Dicor_UID[1]= Dimo_response_data.Dicor_UID[1];
+					Dimo_ht_data.Dicor_UID[2]= Dimo_response_data.Dicor_UID[2];
+					Dimo_ht_data.Dicor_UID[3]= Dimo_response_data.Dicor_UID[3];
+					Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+					Dimo_ht_data.pack_type=Dimo_response_data.pack_type;
+					Dimo_ht_data.state=0x00;
+					error = send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),
+					sizeof(DIMO_HT_DATA), 0);  
+					*/
 		     
 			    break; 
 			    
@@ -1050,7 +928,7 @@ static UINT_32 dicor_process_DiMo_packet(uint_32 sock)
 				DEBUG_DIS(printf("\n write magnus parameter\n"));
 				DEBUG_DIS(printf("Cosmos current GatewayID 0x%04x\n", CoodAddr));
 				dicor_kill_task("dicor_third_device_task");
-				_time_delay(4000);
+				_time_delay(2000);
 				{
 					uint_16 addr,addr_f;	
 					uint_8* data_buffer;
@@ -1060,11 +938,6 @@ static UINT_32 dicor_process_DiMo_packet(uint_32 sock)
 					addr = addr & 0xFF00 ;
 					addr|= data_buffer[5];
 					Write_Magnus_Parameter_CMD(addr_f,addr,data_buffer);
-			
-					_time_delay(2000);
-					taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
-					_time_delay(2000);
-
 					if ((data_buffer[1] == data_buffer[3]) \
 						&& (data_buffer[3] == data_buffer[5]) \
 						&& (data_buffer[1] != data_buffer[12]))
@@ -1072,20 +945,17 @@ static UINT_32 dicor_process_DiMo_packet(uint_32 sock)
 						EepromWriteCoodaddr(&data_buffer[12]);
 						printf("_flash write finish_\n");
 					}
+					taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
 		       	}
 			    break;
-			  
-			  	}
-		 break;
+			}
+		break;
 	
 		default:
 			break;
 		}		/* Endswitch */
 	}			/* Endif */
-
-	
-
-}				/* Endbody */
+}/* Endbody */
 
 void dicor_close_socket(void)
 {
@@ -1263,7 +1133,7 @@ static uint_32 dicor_connect_datacentermux(void)
 	option = 1460;
 	error = setsockopt(upload_buffer.sock_mux, SOL_TCP, OPT_RBSIZE, &option, sizeof(option));
 
-	option = 5000UL;	//5min改成1min  60000改为5000五秒
+	option = 1000UL;	//5min改成1min  60000改为5000五秒
 	error = setsockopt(upload_buffer.sock_mux, SOL_TCP, OPT_CONNECT_TIMEOUT, &option, sizeof(option));
 	if (error != RTCS_OK) {
 		shutdown(upload_buffer.sock_mux, FLAG_ABORT_CONNECTION);
@@ -1313,8 +1183,7 @@ static uint_32 dicor_connect_datacentermux(void)
 		DEBUG_DIS(printf("\nGetting ip from DNS server ... "));
 		if (RTCS_resolve_ip_address(pBaseConfig->datacenterdns, &server_addr_mux.sin_addr.s_addr, NULL, 0)) 
 		{
-			DEBUG_DIS(printf("\n get Ip: %d.%d.%d.%d \n",
-					 IPBYTES(server_addr_mux.sin_addr.s_addr)));
+			DEBUG_DIS(printf("\n get Ip: %d.%d.%d.%d \n", IPBYTES(server_addr_mux.sin_addr.s_addr)));
 		} else {
 			DEBUG_DIS(printf("Failed in getting server IP\n"));
 			shutdown(upload_buffer.sock_mux, FLAG_ABORT_CONNECTION);
@@ -1332,13 +1201,9 @@ static uint_32 dicor_connect_datacentermux(void)
 	if (RTCS_OK != connect(upload_buffer.sock_mux, &server_addr_mux, sizeof(server_addr_mux)))
 	{
 		shutdown(upload_buffer.sock_mux, FLAG_ABORT_CONNECTION);
-		DEBUG_DIS(printf("\n Error in connect() with error code: %01x!",
-			   RTCS_geterror(upload_buffer.sock_mux)));
+		DEBUG_DIS(printf("\n Error in connect() with error code: %01x!", RTCS_geterror(upload_buffer.sock_mux)));
 		_time_delay_ticks(100);
 		dicor_get_logtime(&date);
-		//EthernetLedOff();
-		//DimoLedOff();
-		//SdLedOff();
 		sprintf(pDiCorLog->logbuf, "%02d:%02d:%02d\t Socket connect出错，错误代码:%08X\r\n", date.HOUR,date.MINUTE,date.SECOND,RTCS_geterror(upload_buffer.sock));
 		PrintLog(pDiCorLog->logbuf);
 		return (4);
@@ -1399,8 +1264,9 @@ static void DiCor_SendIntfaceVersion(void)
 		*data_p++ = pBaseConfig->uid[2];
 		*data_p++ = pBaseConfig->uid[3];
 		//version 01:00:00:02
-		*data_p++ = 0x36;
-		*data_p++ = 0x00;
+		*data_p++ = pBaseConfig->softversion[1];//pBaseConfig->softversion[1]
+		*data_p++ = pBaseConfig->softversion[2];
+		*data_p++ = pBaseConfig->softversion[3];
 		*data_p++ = 0x05;
 		*data_p++ = 0x28;
 		if (SERVER_MODE == 2)
@@ -1595,7 +1461,8 @@ void dicor_get_timer(void)
 	{
 		_time_get(&time);
 		//将互联网的格林时间转换成北京时间
-		//time.SECONDS += 8*3600;
+		time.SECONDS += (signed char)pBaseConfig->zone*3600;
+//		printf("\npBaseConfig->zone: %d\n", (signed char)pBaseConfig->zone);
 		_time_to_date(&time, &date);
 		if (date.YEAR >= 2011 && date.YEAR < 2100)	//确保所得时间是对的
 		{
@@ -1603,6 +1470,8 @@ void dicor_get_timer(void)
 			_rtc_time_from_mqx_time(&time, &time_rtc);
 			_rtc_set_time(&time_rtc);
 			printf("Set rtc time via Internet time!\n");
+			_time_set(&time);
+			printf("Set sys time via Internet time!\n");
 		}
 	}
 
@@ -1763,13 +1632,13 @@ void Dicor_rebootfile(void)
 
 void dicor_connect_task(uint_32 initial_data)
 {
-	uint_32 error;
+//	uint_32 error;
 	if (_watchdog_create_component(BSP_TIMER_INTERRUPT_VECTOR,Wacthdog_Error)!= MQX_OK)  
 	{ 
 	  printf("connect task create watchdog failed !");
 	}
 	       
-	_watchdog_start(60*1000);	
+	_watchdog_start(60*60*1000);	
 	while (1)
 	{
 		if (upload_buffer.eth_st != ETH_CABLE_IP_CON)
@@ -1777,7 +1646,7 @@ void dicor_connect_task(uint_32 initial_data)
 			DimoLedOff();
 			dicor_check_connect();
 		}
-		_watchdog_start(60*1000);
+		_watchdog_start(60*60*1000);
 		_time_delay(1000);//由1000改为500
 	}
 }
@@ -1803,19 +1672,17 @@ void dicor_upload_data_task(uint_32 initial_data)
 	}
 	
 	 _watchdog_start(60*1000);
-	
+
 	SDcard_Install();
 	LogInit();
 	LostLogInit();
-	
 	//2014.4.3  增加开机自动wall的功能
-//	{
-//		int_32 argc; 
-//		char_ptr argv[2];
-//		Shell_wall(1,argv);
-//	}
+	{
+		char_ptr argv[] = {"wbaseconfig"};
+//		Shell_wbaseconfig(1,argv);
+	}
 	EepromReadCoodaddr();
-   
+    
 	dicor_get_logtime(&date);
 	sprintf(pDiCorLog->logbuf, "%02d:%02d:%02d\t 开机，系统启动 (软件版本号: %c%d.%d.%d)\r\n", 
 	date.HOUR,date.MINUTE,date.SECOND,
@@ -1854,7 +1721,7 @@ void dicor_upload_data_task(uint_32 initial_data)
 		}
 	}//此处要处理连接最终状态	
 	_watchdog_stop();	
-	_watchdog_start(60*1000);	
+	_watchdog_start(60*10*1000);	
 	DiCor_SendIntfaceVersion();
 
 	RF_SetupNetwork();
@@ -1875,6 +1742,10 @@ void dicor_upload_data_task(uint_32 initial_data)
    	{
    		watchdogenable = 0;
    	}
+	upload_buffer.data0.type = 0x12;	//data package
+	upload_buffer.state = CAN_WRITE;
+	upload_buffer.write_index = 0;
+	DEBUG_DIS(printf("\nwaitting data\n"));	
 	
 	taskid = _task_create(0, DICOR_CONNECT_TASK, 0); 
 	if (taskid == MQX_NULL_TASK_ID)
@@ -1882,16 +1753,10 @@ void dicor_upload_data_task(uint_32 initial_data)
 		printf("Could not create DICOR_CONNECT_TASK \n");
 	}
 
+	//_time_delay(1000*15);//此处的作用？估计是等待CC2530那个上电30S
 	_lwevent_clear(&RF_NET_event, THIRD_DEVICE_DATA_END);
 	_lwevent_set(&RF_NET_event, THIRD_DEVICE_DATA_START);
 
-	_time_delay(1000*15);	
-	
-	upload_buffer.data0.type = 0x12;	//data package
-	upload_buffer.state = CAN_WRITE;
-	upload_buffer.write_index = 0;
-	DEBUG_DIS(printf("\nwaitting data\n"));	
-	
 	taskid = _task_create(0, DICOR_THIRD_DEVICE_TASK, 0);
 	if (taskid == MQX_NULL_TASK_ID)
 	{
@@ -1917,24 +1782,19 @@ void dicor_upload_data_task(uint_32 initial_data)
 		{
 			RunLedBlink();
 		}
-		if (pDiCorLog->updatetimes >= 4000)//5min保存一次 //60000
+		if (pDiCorLog->updatetimes >= 3000)//5min保存一次 //60000
 		{
-			//RunLedOff();
-			
-			//_time_delay(1000);
 			Dimo_hb_data.Dicor_UID[0] = pBaseConfig->uid[0];
 			Dimo_hb_data.Dicor_UID[1] = pBaseConfig->uid[1];
 			Dimo_hb_data.Dicor_UID[2] = pBaseConfig->uid[2];
 			Dimo_hb_data.Dicor_UID[3] = pBaseConfig->uid[3];
 			Dimo_hb_data.pack_type = 0x0200;
-
 			Dimo_hb_data.status = 0x0000;
 			if (SERVER_MODE == 2)	
 				error = send(upload_buffer.sock_mux,(char_ptr)(&Dimo_hb_data.Dicor_UID[0]), sizeof(DIMO_HB_DATA), 0);		
 			error = send(upload_buffer.sock,(char_ptr)(&Dimo_hb_data.Dicor_UID[0]), sizeof(DIMO_HB_DATA), 0);
 			pDiCorLog->updatetimes = 0;
 			printf("\n\ncosmos_update poll");
-			//RunLedOn();
 		}
 		if (upload_buffer.eth_st == ETH_CABLE_IP_CON) {
 			//接收来自服务器数据
@@ -1964,8 +1824,7 @@ void dicor_upload_data_task(uint_32 initial_data)
 					watchdogenable = 1;
 					_watchdog_start(60*60*1000);
 				}
-			}
-			else {
+			} else {
 				if (watchdogenable == 1) {
 					watchdogenable = 0;
 					_watchdog_stop();
@@ -2003,7 +1862,6 @@ void dicor_upload_data_task(uint_32 initial_data)
 							PrintLog(pDiCorLog->logbuf);
 						} else {
 							DEBUG_DIS(printf("\n"));
-							 
 						}
 					}
 				}

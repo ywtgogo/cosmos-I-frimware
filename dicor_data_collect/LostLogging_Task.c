@@ -18,14 +18,14 @@
 #include "lostlogging_public.h"
 #include "dicor.h"
 #include "lostlogging_private.h"
-
+#include "led.h"
 
 _pool_id  lost_pool=NULL;	//丢包统计
 LWSEM_STRUCT LostLogging_init_sem;
 LOST_LOG* pLostLog;
 
 extern _mem_pool_id _user_pool_id;
-
+extern uchar Pulldown_Cc2530_flag;
 
 extern void dicor_get_logtime(DATE_STRUCT * date);
 extern MQX_FILE_PTR filesystem_handle;
@@ -126,26 +126,42 @@ void dicor_lostlogging_task(uint_32 param)
 	
 	if (ChkSaveLog(&date))//[6,18)丢包保存
 	{
-		_watchdog_start(60*60*1000);
+	//	printf("\nfile=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
+		_watchdog_start(WD_FEED_H);//60*60*1000
 	}
-
-
+	LED2GREEN_off();
+	LED2RED_off();
 	while (TRUE) 
 	{
-		// wait for a message
+		_time_delay(5*1000);		
+		if (Pulldown_Cc2530_flag) 
+		{
+			//printf("Pulldown_Cc2530_flag*%x\n",Pulldown_Cc2530_flag);
+			printf("\nfile=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
+			printf("\nwatchdog_feed\n");
+			
+			_watchdog_start(WD_FEED_10M);
+			LED2GREEN_on();
+			_time_delay(5*1000);
+			LED2GREEN_off();
+			_time_delay(60*1000);
+		}
+		
+/*		// wait for a message
 		msg_ptr = _msgq_receive(lost_qid, 0);
-
+		//printf("file=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
 		if (msg_ptr) 
 		{
 			// Open the log file and position to the end
 			lost_fp = lostlogging_getfileptr();
-			
-			if (lost_fp) 
+			//printf("file=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
+			if (lost_fp)
 			{
 				_lwsem_wait(&pLostLog->writesem);
 				// fseek(log_fp,0,IO_SEEK_END);
 				do 
 				{
+					//printf("file=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
 					// Write the message to the log file
 					write(lost_fp,msg_ptr->MESSAGE, strlen(msg_ptr->MESSAGE));
 					// Return the message back to the message pool
@@ -161,14 +177,15 @@ void dicor_lostlogging_task(uint_32 param)
 			
 			if (ChkSaveLog(&date))//[6,18)丢包保存
 			{
+				//printf("file=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
 				_watchdog_start(60*60*1000);
 			}
 			else
 			{
+				//printf("file=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
 				_watchdog_stop();
 			}
-			
-		}
+		}*/
 	}
 }
 

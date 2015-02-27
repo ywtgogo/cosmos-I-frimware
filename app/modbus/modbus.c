@@ -36,6 +36,7 @@
 //#define RS485_CHANNEL "ittyb:"
 
 //MQX_FILE_PTR rs485_dev = NULL;
+uchar Pulldown_Cc2530_flag = 0;
 extern uchar CoodAddr;
 extern void EepromWriteCoodaddr(unsigned char *);
 extern UINT_8 SERVER_MODE;
@@ -146,7 +147,30 @@ void Modbus_SendStartCommand(uint_16 addr1,uint_8* start_buffer)
 	printf("\nWaiting the response of the device[0x%04x]",addr1);
 	rs485_clear_buf();
 	rs485_write(temp_Buf, 7);
-  	DETECT_MESAGE_TIME_OUT_Command(temp_Buf, 7, 18, addr1);
+	
+	Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
+	Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
+	Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
+	Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
+	Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+	Dimo_ht_data.pack_type=temp_Buf[0];
+	Dimo_ht_data.state=temp_Buf[1];
+	Dimo_ht_data.Data_Buffer[0]=temp_Buf[2];
+	Dimo_ht_data.Data_Buffer[1]=temp_Buf[3];
+	Dimo_ht_data.Data_Buffer[2]=temp_Buf[4];
+	Dimo_ht_data.Data_Buffer[3]=temp_Buf[5];
+	Dimo_ht_data.Data_Buffer[4]=temp_Buf[6];
+	Dimo_ht_data.Data_Buffer[5]=temp_Buf[7];
+	Dimo_ht_data.Data_Buffer[6]=temp_Buf[8];
+	Dimo_ht_data.Data_Buffer[7]=temp_Buf[9];
+	Dimo_ht_data.Data_Buffer[8]=temp_Buf[10];
+	Dimo_ht_data.Data_Buffer[9]=temp_Buf[11];
+	Dimo_ht_data.addr =addr1;
+	if (SERVER_MODE == 2)           
+		send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);            
+	send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 	
+	
+  	DETECT_POLL_TIME_OUT_Command(temp_Buf, 7, 13, addr1);
 }
 
 
@@ -315,59 +339,54 @@ void Modbus_SendReadyCommand(uint_16 addr1,uint_8* ready_buffer)
 
 void SET_ROUTER_TABLE_Command(uint_16 addr,uint_8* data_buffer)
 {
- uint_16 crc;
- int_8 i;
- uint_8 len,temp_Buf[150];
- uint_16 b_len;
-  	_mqx_int recv_len;
-  	//	uint_8 tmp_buf[100];
-  uint_8* rx_data_buffer;
-  	b_len = recv_len;
-  //	tmp_buf[2]=data_buffer[2];
-  //	printf("b_len:%4d\n",b_len);
-  	//	printf("发送命令\n");
-			 _time_delay(500);
-			//	printf("等待回应...\n");
-			 rx_data_buffer = RS485_Data_Buffer;
-		
-	         b_len = rs485_read(rx_data_buffer);
- temp_Buf[0]=0x80;
- temp_Buf[1]=CoodAddr;	
+	uint_16 crc;
+	int_8 i;
+	uint_8 len,temp_Buf[150];
+	uint_16 b_len;
+	_mqx_int recv_len;
 
+	uint_8* rx_data_buffer;
+	b_len = recv_len;
+
+	_time_delay(500);
+
+	rx_data_buffer = RS485_Data_Buffer;		
+	b_len = rs485_read(rx_data_buffer);
+	temp_Buf[0]=0x80;
+	temp_Buf[1]=CoodAddr;	
 
  	for(i=98;i>0;i--)
 	{
-	temp_Buf[2+i]=data_buffer[1+i];
+		temp_Buf[2+i]=data_buffer[1+i];
 	}
-	 temp_Buf[2]=0x51;
-  crc = Modbus_calcrc16(temp_Buf, 101);
-  temp_Buf[101] = (uint_8)crc;
-  temp_Buf[102] = (uint_8)(crc>>8);
-  rs485_write(temp_Buf, 103);
-               Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
-	           Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
-	           Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
-	           Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
-	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
-	           Dimo_ht_data.pack_type=temp_Buf[0];
-	           Dimo_ht_data.state=temp_Buf[1];
-	         //error = 
-	           Dimo_ht_data.Data_Buffer[0]=temp_Buf[2];
-	           Dimo_ht_data.Data_Buffer[1]=temp_Buf[3];
-	           Dimo_ht_data.Data_Buffer[2]=temp_Buf[4];
-	           Dimo_ht_data.Data_Buffer[3]=temp_Buf[5];
-	           Dimo_ht_data.Data_Buffer[4]=temp_Buf[6];
-	           Dimo_ht_data.Data_Buffer[5]=temp_Buf[7];
-	           Dimo_ht_data.Data_Buffer[6]=temp_Buf[8];
-	           Dimo_ht_data.Data_Buffer[7]=temp_Buf[9];
-	           Dimo_ht_data.Data_Buffer[8]=temp_Buf[10];
-	           Dimo_ht_data.Data_Buffer[9]=temp_Buf[11];
-	           Dimo_ht_data.addr =addr;
-	         if (SERVER_MODE == 2)  
-	         	send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);   
-	         send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
-  			len=103;
- 			DETECT_MESAGE_TIME_OUT_Command(temp_Buf,len,1,addr);   
+	temp_Buf[2]=0x51;
+	crc = Modbus_calcrc16(temp_Buf, 101);
+	temp_Buf[101] = (uint_8)crc;
+	temp_Buf[102] = (uint_8)(crc>>8);
+	rs485_write(temp_Buf, 103);
+	Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
+	Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
+	Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
+	Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
+	Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+	Dimo_ht_data.pack_type=temp_Buf[0];
+	Dimo_ht_data.state=temp_Buf[1];
+	Dimo_ht_data.Data_Buffer[0]=temp_Buf[2];
+	Dimo_ht_data.Data_Buffer[1]=temp_Buf[3];
+	Dimo_ht_data.Data_Buffer[2]=temp_Buf[4];
+	Dimo_ht_data.Data_Buffer[3]=temp_Buf[5];
+	Dimo_ht_data.Data_Buffer[4]=temp_Buf[6];
+	Dimo_ht_data.Data_Buffer[5]=temp_Buf[7];
+	Dimo_ht_data.Data_Buffer[6]=temp_Buf[8];
+	Dimo_ht_data.Data_Buffer[7]=temp_Buf[9];
+	Dimo_ht_data.Data_Buffer[8]=temp_Buf[10];
+	Dimo_ht_data.Data_Buffer[9]=temp_Buf[11];
+	Dimo_ht_data.addr =addr;
+	if (SERVER_MODE == 2)  
+		send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);   
+	send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
+	len=103;
+	DETECT_MESAGE_TIME_OUT_Command(temp_Buf,len,1,addr);   
 }
 
 //ENTER_IAP_MODE_Command
@@ -565,7 +584,7 @@ void SET_FFD_TABLE_Command(uint_16 addr,uint_8* data_buffer)
 	         if (SERVER_MODE == 2)  
 	         	send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]),sizeof(DIMO_HT_DATA), 0);
 	         send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
-	   	 _time_delay(1000);
+//	   	 _time_delay(1000);
  DETECT_MESAGE_TIME_OUT_Command(temp_Buf,len+12,1,addr);  
 	   	
 }
@@ -597,15 +616,15 @@ void SET_MAGNUS_ROLE_Command(uint_16 addr,uint_8* data_buffer)
 //MODIFY_FFD_NODE_NUM_Command
 void MODIFY_FFD_NODE_NUM_Command(uint_16 addr,uint_8* data_buffer)
 {
-  uint_16 crc;
-  uint_8 len;
-  int_8 i;
-  len = 6;
-    data_buffer[0]=0x80;
-  	data_buffer[1]=CoodAddr;
-  	for(i=0;i<len+4;i++)
+	uint_16 crc;
+	uint_8 len;
+	int_8 i;
+	len = 6;
+	data_buffer[0]=0x80;
+	data_buffer[1]=CoodAddr;
+	for(i=0;i<len+4;i++)
 	{
-	data_buffer[3+i]=data_buffer[2+i];
+		data_buffer[3+i]=data_buffer[2+i];
 	}	
 	data_buffer[2]=0x06;
 	crc = Modbus_calcrc16(data_buffer, 5);
@@ -622,39 +641,35 @@ void FFD_BIND_RFD_Command(uint_16 addr,uint_8* data_buffer)
     temp_Buf[0]=0x80;
   	temp_Buf[1]=CoodAddr;
   	temp_Buf[4]=data_buffer[3];
-
 	temp_Buf[3]=data_buffer[2];
  	temp_Buf[2]=0x45;
  	crc = Modbus_calcrc16(temp_Buf, 5);
 	temp_Buf[5] = (uint_8)crc;
 	temp_Buf[6] = (uint_8)(crc>>8);
-	 _time_delay(200);
+	_time_delay(500);
 	rs485_write(temp_Buf, 7);
-	           Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
-	           Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
-	           Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
-	           Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
-	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
-	           Dimo_ht_data.pack_type=temp_Buf[0];
-	           Dimo_ht_data.state=temp_Buf[1];
-	         //error = 
-	           Dimo_ht_data.Data_Buffer[0]=temp_Buf[2];
-	           Dimo_ht_data.Data_Buffer[1]=temp_Buf[3];
-	           Dimo_ht_data.Data_Buffer[2]=temp_Buf[4];
-	           Dimo_ht_data.Data_Buffer[3]=temp_Buf[5];
-	           Dimo_ht_data.Data_Buffer[4]=temp_Buf[6];
-	           Dimo_ht_data.Data_Buffer[5]=temp_Buf[7];
-	           Dimo_ht_data.Data_Buffer[6]=temp_Buf[8];
-	           Dimo_ht_data.Data_Buffer[7]=temp_Buf[9];
-	           Dimo_ht_data.Data_Buffer[8]=temp_Buf[10];
-	           Dimo_ht_data.Data_Buffer[9]=temp_Buf[11];
-	           Dimo_ht_data.addr =addr;
-	           if (SERVER_MODE == 2)
-	           		send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
-	           send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
-	_time_delay(4000);
-		
- DETECT_MESAGE_TIME_OUT_Command(temp_Buf,7,15,addr);	
+	Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
+	Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
+	Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
+	Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
+	Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+	Dimo_ht_data.pack_type=temp_Buf[0];
+	Dimo_ht_data.state=temp_Buf[1];
+	Dimo_ht_data.Data_Buffer[0]=temp_Buf[2];
+	Dimo_ht_data.Data_Buffer[1]=temp_Buf[3];
+	Dimo_ht_data.Data_Buffer[2]=temp_Buf[4];
+	Dimo_ht_data.Data_Buffer[3]=temp_Buf[5];
+	Dimo_ht_data.Data_Buffer[4]=temp_Buf[6];
+	Dimo_ht_data.Data_Buffer[5]=temp_Buf[7];
+	Dimo_ht_data.Data_Buffer[6]=temp_Buf[8];
+	Dimo_ht_data.Data_Buffer[7]=temp_Buf[9];
+	Dimo_ht_data.Data_Buffer[8]=temp_Buf[10];
+	Dimo_ht_data.Data_Buffer[9]=temp_Buf[11];
+	Dimo_ht_data.addr =addr;
+	if (SERVER_MODE == 2)
+		send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
+	send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 	
+ 	DETECT_MESAGE_TIME_OUT_Command(temp_Buf,7,15,addr);	
 }
 
 //FFD_START_COLLECT_Command
@@ -688,7 +703,6 @@ void SW_Command(uint_16 addr,uint_8* data_buffer)
 	           Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
 	           Dimo_ht_data.pack_type=temp_Buf[0];
 	           Dimo_ht_data.state=temp_Buf[1];
-	         //error = 
 	           Dimo_ht_data.Data_Buffer[0]=temp_Buf[2];
 	           Dimo_ht_data.Data_Buffer[1]=temp_Buf[3];
 	           Dimo_ht_data.Data_Buffer[2]=temp_Buf[4];
@@ -778,7 +792,7 @@ void Write_Magnus_Parameter_CMD(uint_16 addr_f,uint_16 addr_r,uint_8* data_buffe
 		send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
 	send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
 */	_time_delay(1000);
-	DETECT_MESAGE_TIME_OUT_Command(temp_Buf,len+12,10,addr_r);  
+	DETECT_MESAGE_TIME_OUT_Command(temp_Buf,len+12,1,addr_r);  
 }
 
 void Read_Magnus_Parameter_CMD(uint_16 addr_f,uint_16 addr_r,uint_8* data_buffer)
@@ -978,12 +992,7 @@ void OPTIMUS_SYNC_Command(uint_16 addr,uint_8* data_buffer)
 	printf("\nWaiting SYNC the response of the device[0x%04x]",addr);
 	rs485_clear_buf();
 	rs485_write(temp_Buf,13);
-    printf("\nREQ :");
-	for (i = 0; i < 13; i++)
-	{
-		printf("%02x ",temp_Buf[i] );
-	}
-/*		        
+		        
 	Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
 	Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
 	Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
@@ -1005,10 +1014,10 @@ void OPTIMUS_SYNC_Command(uint_16 addr,uint_8* data_buffer)
 	if (SERVER_MODE == 2)           
 		send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);            
 	send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
-	_time_delay(400);
-*/	
+	//_time_delay(400);
+	
 	len=13;
- 	DETECT_MESAGE_TIME_OUT_Command(temp_Buf,len,3,addr);	
+ 	DETECT_POLL_TIME_OUT_Command(temp_Buf,len,1,addr);	
 }
 
 //turn on mosfet
@@ -1177,6 +1186,110 @@ int_32 DETECT_ISP_CMD(uint_8 *w_buf, uint_16 len_buf, uint_16 re_delay, uint_8 r
 }
 
 
+int_8 DETECT_POLL_TIME_OUT_Command(uint_8* data_buffer,uint_8 len,uint_16 delay_time,uint_16 addr)
+{
+	uint_8 i;	
+	uint_16 b_len;
+	uint_16 retry ;//= 2;
+	_mqx_int recv_len;
+	uint_8 tmp_buf[100];
+	uint_8 *rx_data_buffer;
+	b_len = recv_len;
+	tmp_buf[2]=data_buffer[2];
+	retry = 30*delay_time;
+	rx_data_buffer = RS485_Data_Buffer;
+	
+ 	printf("\nREQ :");
+ 	for (i = 0; i < len; i++)
+ 	{
+ 		printf("%02x ",data_buffer[i] );
+ 	}
+ 	
+	for(i=0 ; i<=RETRYTIMES; i++)
+	{
+		while(retry)
+		{
+			_mem_zero(rx_data_buffer, sizeof(rx_data_buffer));
+			_time_delay(300);
+			rs485_read(rx_data_buffer);
+			//printf("%x,%x,%x,%x,%x,%x,%x,%x,%x,%x,%x,%x\n",rx_data_buffer[0],rx_data_buffer[1],rx_data_buffer[2],rx_data_buffer[3],rx_data_buffer[4],rx_data_buffer[5],rx_data_buffer[6],rx_data_buffer[7],rx_data_buffer[8],rx_data_buffer[9],rx_data_buffer[10],rx_data_buffer[11]);
+			if (((rx_data_buffer[0]==0x00)&&(rx_data_buffer[1]==data_buffer[1])) || ((rx_data_buffer[0]==0x00)&&(data_buffer[2]==0x10)&&(data_buffer[13]==rx_data_buffer[1])))
+			{	 
+				Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
+				Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
+				Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
+				Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
+				Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+				Dimo_ht_data.pack_type=tmp_buf[2];
+				Dimo_ht_data.state=rx_data_buffer[5];
+				Dimo_ht_data.Data_Buffer[0]=rx_data_buffer[0];
+				Dimo_ht_data.Data_Buffer[1]=rx_data_buffer[1];
+				Dimo_ht_data.Data_Buffer[2]=rx_data_buffer[2];
+				Dimo_ht_data.Data_Buffer[3]=rx_data_buffer[3];
+				Dimo_ht_data.Data_Buffer[4]=rx_data_buffer[4];
+				Dimo_ht_data.Data_Buffer[5]=rx_data_buffer[5];
+				Dimo_ht_data.Data_Buffer[6]=rx_data_buffer[6];
+				Dimo_ht_data.Data_Buffer[7]=rx_data_buffer[7];
+				Dimo_ht_data.Data_Buffer[8]=rx_data_buffer[8];
+				Dimo_ht_data.Data_Buffer[9]=rx_data_buffer[9];
+			    Dimo_ht_data.addr =addr;
+			    if (SERVER_MODE == 2)  
+			     	send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);    
+			    send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
+			    
+				if ((rx_data_buffer[2]==tmp_buf[2])&&(rx_data_buffer[5] ==0x00))
+				{
+					printf("\n[0x%04x] replies CMD(0x%02x) succeed! STATE_Code:0x%02x",addr,tmp_buf[2],rx_data_buffer[5]);
+					printf("\nRSP :%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",rx_data_buffer[0],rx_data_buffer[1],rx_data_buffer[2],rx_data_buffer[3],rx_data_buffer[4],rx_data_buffer[5],rx_data_buffer[6],rx_data_buffer[7],rx_data_buffer[8],rx_data_buffer[9],rx_data_buffer[10],rx_data_buffer[11]);
+					printf("\n*********************************************************\n");
+					_time_delay(1100*4);					
+				}
+				else if(rx_data_buffer[2]==(tmp_buf[2]|0x80))//if ((rx_data_buffer[0]==0x00)&&(rx_data_buffer[1]==data_buffer[1])&&(rx_data_buffer[5] ==0x0B)&&(rx_data_buffer[2]==(tmp_buf[2]+0x80)))
+				{
+					printf("\n[0x%04x] replies CMD(0x%02x) timeout! EXC_Code:0x%02x",rx_data_buffer[3]<<8|rx_data_buffer[4],tmp_buf[2],rx_data_buffer[5]);
+					printf("\nRSP :%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",rx_data_buffer[0],rx_data_buffer[1],rx_data_buffer[2],rx_data_buffer[3],rx_data_buffer[4],rx_data_buffer[5],rx_data_buffer[6],rx_data_buffer[7],rx_data_buffer[8],rx_data_buffer[9],rx_data_buffer[10],rx_data_buffer[11]);
+					printf("\n*********************************************************\n");					
+					addr = rx_data_buffer[3]<<8|rx_data_buffer[4];
+					_time_delay(1100*4);
+					if (delay_time == 13)//(delay_time != 1)
+						_time_delay(106*1000);
+				}
+				break;
+			}
+			retry--;
+		}
+		if((rx_data_buffer[1]==0x00)&&(rx_data_buffer[5] ==0x00))
+		{
+			printf("\n[0x%04x] replies CMD(0x%02x) No reply!\n",addr,tmp_buf[2]);
+			printf("\nRSP :%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",rx_data_buffer[0],rx_data_buffer[1],rx_data_buffer[2],rx_data_buffer[3],rx_data_buffer[4],rx_data_buffer[5],rx_data_buffer[6],rx_data_buffer[7],rx_data_buffer[8],rx_data_buffer[9],rx_data_buffer[10],rx_data_buffer[11]);
+			printf("\n*********************************************************\n");
+			rx_data_buffer[5]=0x01;				 
+			Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
+			Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
+			Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
+			Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
+			Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+			Dimo_ht_data.pack_type=tmp_buf[2];
+			Dimo_ht_data.state=rx_data_buffer[5];
+			Dimo_ht_data.Data_Buffer[0]=rx_data_buffer[0];
+			Dimo_ht_data.Data_Buffer[1]=rx_data_buffer[1];
+			Dimo_ht_data.Data_Buffer[2]=rx_data_buffer[2];
+			Dimo_ht_data.Data_Buffer[3]=rx_data_buffer[3];
+			Dimo_ht_data.Data_Buffer[4]=rx_data_buffer[4];
+			Dimo_ht_data.Data_Buffer[5]=rx_data_buffer[5];
+			Dimo_ht_data.Data_Buffer[6]=rx_data_buffer[6];
+			Dimo_ht_data.Data_Buffer[7]=rx_data_buffer[7];
+			Dimo_ht_data.Data_Buffer[8]=rx_data_buffer[8];
+			Dimo_ht_data.Data_Buffer[9]=rx_data_buffer[9];
+		    Dimo_ht_data.addr =addr;
+		     if (SERVER_MODE == 2)  
+		     	send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);    
+		     send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);
+		}
+	}
+}
+
+
 int_8 DETECT_MESAGE_TIME_OUT_Command(uint_8* data_buffer,uint_8 len,uint_16 delay_time,uint_16 addr)
 {
 	uint_8 i;	
@@ -1204,18 +1317,47 @@ int_8 DETECT_MESAGE_TIME_OUT_Command(uint_8* data_buffer,uint_8 len,uint_16 dela
 			_time_delay(300);
 			rs485_read(rx_data_buffer);
 			//printf("%x,%x,%x,%x,%x,%x,%x,%x,%x,%x,%x,%x\n",rx_data_buffer[0],rx_data_buffer[1],rx_data_buffer[2],rx_data_buffer[3],rx_data_buffer[4],rx_data_buffer[5],rx_data_buffer[6],rx_data_buffer[7],rx_data_buffer[8],rx_data_buffer[9],rx_data_buffer[10],rx_data_buffer[11]);
-			if ((rx_data_buffer[0]==0x00)&&(rx_data_buffer[1]==data_buffer[1]))
-			{
+			if (((rx_data_buffer[0]==0x00)&&(rx_data_buffer[1]==data_buffer[1])) || ((rx_data_buffer[0]==0x00)&&(data_buffer[2]==0x10)&&(data_buffer[13]==rx_data_buffer[1])))
+			{	 
+				Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
+				Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
+				Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
+				Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
+				Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+				Dimo_ht_data.pack_type=tmp_buf[2];
+				Dimo_ht_data.state=rx_data_buffer[5];
+				Dimo_ht_data.Data_Buffer[0]=rx_data_buffer[0];
+				Dimo_ht_data.Data_Buffer[1]=rx_data_buffer[1];
+				Dimo_ht_data.Data_Buffer[2]=rx_data_buffer[2];
+				Dimo_ht_data.Data_Buffer[3]=rx_data_buffer[3];
+				Dimo_ht_data.Data_Buffer[4]=rx_data_buffer[4];
+				Dimo_ht_data.Data_Buffer[5]=rx_data_buffer[5];
+				Dimo_ht_data.Data_Buffer[6]=rx_data_buffer[6];
+				Dimo_ht_data.Data_Buffer[7]=rx_data_buffer[7];
+				Dimo_ht_data.Data_Buffer[8]=rx_data_buffer[8];
+				Dimo_ht_data.Data_Buffer[9]=rx_data_buffer[9];
+			    Dimo_ht_data.addr =addr;
+			    if (SERVER_MODE == 2)  
+			     	send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);    
+			    send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 
+			    
 				if ((rx_data_buffer[2]==tmp_buf[2])&&(rx_data_buffer[5] ==0x00))
 				{
 					printf("\n[0x%04x] replies CMD(0x%02x) succeed! STATE_Code:0x%02x",addr,tmp_buf[2],rx_data_buffer[5]);
+					printf("\nRSP :%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",rx_data_buffer[0],rx_data_buffer[1],rx_data_buffer[2],rx_data_buffer[3],rx_data_buffer[4],rx_data_buffer[5],rx_data_buffer[6],rx_data_buffer[7],rx_data_buffer[8],rx_data_buffer[9],rx_data_buffer[10],rx_data_buffer[11]);
+					printf("\n*********************************************************\n");
+					//_time_delay(1100*4);					
 				}
 				else if(rx_data_buffer[2]==(tmp_buf[2]|0x80))//if ((rx_data_buffer[0]==0x00)&&(rx_data_buffer[1]==data_buffer[1])&&(rx_data_buffer[5] ==0x0B)&&(rx_data_buffer[2]==(tmp_buf[2]+0x80)))
 				{
-					printf("\n[0x%04x] replies CMD(0x%02x) timeout! EXC_Code:0x%02x",addr,tmp_buf[2],rx_data_buffer[5]);
+					printf("\n[0x%04x] replies CMD(0x%02x) timeout! EXC_Code:0x%02x",rx_data_buffer[3]<<8|rx_data_buffer[4],tmp_buf[2],rx_data_buffer[5]);
+					printf("\nRSP :%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",rx_data_buffer[0],rx_data_buffer[1],rx_data_buffer[2],rx_data_buffer[3],rx_data_buffer[4],rx_data_buffer[5],rx_data_buffer[6],rx_data_buffer[7],rx_data_buffer[8],rx_data_buffer[9],rx_data_buffer[10],rx_data_buffer[11]);
+					printf("\n*********************************************************\n");					
+					addr = rx_data_buffer[3]<<8|rx_data_buffer[4];
+					//_time_delay(1100*4);
+					//if (delay_time == 13)//(delay_time != 1)
+					//	_time_delay(106*1000);
 				}
-				printf("\nRSP :%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",rx_data_buffer[0],rx_data_buffer[1],rx_data_buffer[2],rx_data_buffer[3],rx_data_buffer[4],rx_data_buffer[5],rx_data_buffer[6],rx_data_buffer[7],rx_data_buffer[8],rx_data_buffer[9],rx_data_buffer[10],rx_data_buffer[11]);
-				printf("\n*********************************************************\n");										
 				break;
 			}
 			retry--;
@@ -1225,33 +1367,31 @@ int_8 DETECT_MESAGE_TIME_OUT_Command(uint_8* data_buffer,uint_8 len,uint_16 dela
 			printf("\n[0x%04x] replies CMD(0x%02x) No reply!\n",addr,tmp_buf[2]);
 			printf("\nRSP :%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",rx_data_buffer[0],rx_data_buffer[1],rx_data_buffer[2],rx_data_buffer[3],rx_data_buffer[4],rx_data_buffer[5],rx_data_buffer[6],rx_data_buffer[7],rx_data_buffer[8],rx_data_buffer[9],rx_data_buffer[10],rx_data_buffer[11]);
 			printf("\n*********************************************************\n");
-			rx_data_buffer[5]=0x01;
+			rx_data_buffer[5]=0x01;				 
+			Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
+			Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
+			Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
+			Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
+			Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+			Dimo_ht_data.pack_type=tmp_buf[2];
+			Dimo_ht_data.state=rx_data_buffer[5];
+			Dimo_ht_data.Data_Buffer[0]=rx_data_buffer[0];
+			Dimo_ht_data.Data_Buffer[1]=rx_data_buffer[1];
+			Dimo_ht_data.Data_Buffer[2]=rx_data_buffer[2];
+			Dimo_ht_data.Data_Buffer[3]=rx_data_buffer[3];
+			Dimo_ht_data.Data_Buffer[4]=rx_data_buffer[4];
+			Dimo_ht_data.Data_Buffer[5]=rx_data_buffer[5];
+			Dimo_ht_data.Data_Buffer[6]=rx_data_buffer[6];
+			Dimo_ht_data.Data_Buffer[7]=rx_data_buffer[7];
+			Dimo_ht_data.Data_Buffer[8]=rx_data_buffer[8];
+			Dimo_ht_data.Data_Buffer[9]=rx_data_buffer[9];
+		    Dimo_ht_data.addr =addr;
+		     if (SERVER_MODE == 2)  
+		     	send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);    
+		     send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);
 		}
 	}
-
-	printf("\n");	 
-	Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
-	Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
-	Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
-	Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
-	Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
-	Dimo_ht_data.pack_type=tmp_buf[2];
-	Dimo_ht_data.state=rx_data_buffer[5];
-	Dimo_ht_data.Data_Buffer[0]=rx_data_buffer[0];
-	Dimo_ht_data.Data_Buffer[1]=rx_data_buffer[1];
-	Dimo_ht_data.Data_Buffer[2]=rx_data_buffer[2];
-	Dimo_ht_data.Data_Buffer[3]=rx_data_buffer[3];
-	Dimo_ht_data.Data_Buffer[4]=rx_data_buffer[4];
-	Dimo_ht_data.Data_Buffer[5]=rx_data_buffer[5];
-	Dimo_ht_data.Data_Buffer[6]=rx_data_buffer[6];
-	Dimo_ht_data.Data_Buffer[7]=rx_data_buffer[7];
-	Dimo_ht_data.Data_Buffer[8]=rx_data_buffer[8];
-	Dimo_ht_data.Data_Buffer[9]=rx_data_buffer[9];
-    Dimo_ht_data.addr =addr;
-     if (SERVER_MODE == 2)  
-     	send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);    
-     send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);  
- }
+}
 
 //ENTER_IAP_MODE_Command
 void OPT_Modbus_ENTER_IAP_MODE_Command(uint_16 addr_f,uint_16 addr_r,uint_8* data_buffer)
@@ -1277,7 +1417,7 @@ void OPT_Modbus_ENTER_IAP_MODE_Command(uint_16 addr_f,uint_16 addr_r,uint_8* dat
 	    data_buffer[8] = (uint_8)(crc>>8);
 		rs485_write(data_buffer, 9);
 	 	len=9;
- DETECT_MESAGE_TIME_OUT_Command(data_buffer,len,1,addr_f); 
+ 		DETECT_MESAGE_TIME_OUT_Command(data_buffer,len,1,addr_f); 
 }
 
 //ERASE_FLASH_Command
@@ -1354,7 +1494,8 @@ void OPT_END_IAP_Command(uint_16 addr_f,uint_16 addr_r,uint_16 crc,uint_8* data_
 //Modbus发送读取保持寄存器的命令后取回应数据，并解析数据
 int_8 Modbus_RecvReadRegData(uint_16 addr2, uint_8* data_buffer, uint_8* dest)
 {
-	uint_8 retry = 30;
+	static uint_8 cmd_04_error_flag = 0;
+	uint_8 retry = 20;//30;更改04命令的总响应时间为20s
 	_mqx_int recv_len;
 	uint_16 crc;
 	uint_8 crch, crcl,cc_flag;
@@ -1368,8 +1509,6 @@ int_8 Modbus_RecvReadRegData(uint_16 addr2, uint_8* data_buffer, uint_8* dest)
 	MQX_FILE_PTR rs485_dev = NULL;
 	data_buffer = RS485_Data_Buffer;
 	b_len = recv_len;	
-	//b_len = rs485_read(data_buffer);
-	//printf("%x,%x,%x,%x,%x,%x\n",data_buffer[0],data_buffer[1],data_buffer[2],data_buffer[3],data_buffer[4],data_buffer[5]);
 /****************************************************/
 	while(retry)
 	{
@@ -1381,7 +1520,7 @@ int_8 Modbus_RecvReadRegData(uint_16 addr2, uint_8* data_buffer, uint_8* dest)
 		if ((data_buffer[0]==0x00)&&(data_buffer[1]==CoodAddr)&&(data_buffer[2]==0x04||data_buffer[2]==0x84))
 		{
 			break;
-		}	
+		}
 	}
 /***************************************************/
 
@@ -1422,9 +1561,10 @@ int_8 Modbus_RecvReadRegData(uint_16 addr2, uint_8* data_buffer, uint_8* dest)
                 printf("*********************************************************\n");
 			   	RfLedOn();
 			   	SetParameterData.flag=0;
+			   	cmd_04_error_flag=0;
 			}
 			else
-			{   
+			{
 				printf("Modbus 数据CRC校验错误！\n");
 				printf("databuffer0:%x\n",data_buffer[0]);
 				printf("databuffer1:%x\n",data_buffer[1]);
@@ -1445,6 +1585,29 @@ int_8 Modbus_RecvReadRegData(uint_16 addr2, uint_8* data_buffer, uint_8* dest)
 				dicor_get_logtime(&date);
 		
 				sprintf(pDiCorLog->logbuf, "%02d:%02d:%02d\t Modbus 数据CRC校验错误！\r\n", date.HOUR,date.MINUTE,date.SECOND);
+				
+				Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
+				Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
+				Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
+				Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
+				Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+				Dimo_ht_data.pack_type=0x04;
+				Dimo_ht_data.state=0x13;//data_buffer[5];
+				Dimo_ht_data.Data_Buffer[0]=data_buffer[0];
+				Dimo_ht_data.Data_Buffer[1]=data_buffer[1];
+				Dimo_ht_data.Data_Buffer[2]=data_buffer[2];
+				Dimo_ht_data.Data_Buffer[3]=data_buffer[3];
+				Dimo_ht_data.Data_Buffer[4]=data_buffer[4];
+				Dimo_ht_data.Data_Buffer[5]=data_buffer[5];
+				Dimo_ht_data.Data_Buffer[6]=data_buffer[6];
+				Dimo_ht_data.Data_Buffer[7]=data_buffer[7];
+				Dimo_ht_data.Data_Buffer[8]=data_buffer[8];
+				Dimo_ht_data.Data_Buffer[9]=data_buffer[9];
+			    Dimo_ht_data.addr =addr2;
+				if (SERVER_MODE == 2)  
+					send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);    
+				send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 				
+								
 				_time_delay(1000*retry);
 				return -1;				 
 			}
@@ -1469,20 +1632,21 @@ int_8 Modbus_RecvReadRegData(uint_16 addr2, uint_8* data_buffer, uint_8* dest)
 			_time_delay(1000*retry);
 			return -1;		 
 		 }
-	}
-	
+	}	
 	else
 	{
     	RfLedOff();
     	if ((data_buffer[index+2]!=0x00) &&(data_buffer[index+1] == CoodAddr))
-    	{
-    		
-    	    printf("\n[0x%04X]replies CMD(0x04) timeout!\n", addr2);
+    	{    		
+    		addr2 = data_buffer[3]<<8|data_buffer[4];
+    	    printf("\n[0x%04X]replies CMD(0x04) timeout! EXC_Code:0x%02x\n", addr2, data_buffer[5]);
 		   	printf("RSP Frame:%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x\n",data_buffer[0],data_buffer[1],data_buffer[2],data_buffer[3],data_buffer[4],data_buffer[5],data_buffer[6],data_buffer[7],data_buffer[8],data_buffer[9],data_buffer[10],data_buffer[11]);
 		    printf("*********************************************************\n");
             printf("Cosmos gather the device[0x%04X] parameters timeout!\n", addr2);
             printf("Send 00 00 to data center\n");
             printf("*********************************************************\n");
+            cmd_04_error_flag++;
+            printf("cmd_04_error_flag*%d\n",cmd_04_error_flag);
     	}
         else 
 		{
@@ -1496,22 +1660,46 @@ int_8 Modbus_RecvReadRegData(uint_16 addr2, uint_8* data_buffer, uint_8* dest)
 			SetParameterData.flag++;
 			printf("No response*%x\n",SetParameterData.flag);			
 		}
-		if(SetParameterData.flag==4) 
+		if((SetParameterData.flag==4) || ( cmd_04_error_flag==12))
 		{
 			printf("\nRESET CC2530\n");	
 			SetParameterData.flag=0;
+			cmd_04_error_flag=0;
 			fclose(rs485_dev);
 			fflush(rs485_dev); 
+			printf("\nfile=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
+			Pulldown_Cc2530_flag = 1;					
 			GPIO_PULLDOWN();
-			_time_delay(30000);
+			_time_delay(30000);		
 			RESET_CC2530();
-			_time_delay(30000);			
-			Dicor_Reboot();			
+			_time_delay(30000);						
 			N_RESET_CC2530();
-			_time_delay(30000);
+			_time_delay(5000);
+			Dicor_Reboot();
 			rs485_init();
 		}
-//modify by ywt			
+//modify by ywt
+		Dimo_ht_data.Dicor_UID[0]= pBaseConfig->uid[0];
+		Dimo_ht_data.Dicor_UID[1]= pBaseConfig->uid[1];
+		Dimo_ht_data.Dicor_UID[2]= pBaseConfig->uid[2];
+		Dimo_ht_data.Dicor_UID[3]= pBaseConfig->uid[3];
+		Dimo_ht_data.pack_obj=Dimo_response_data.pack_obj;
+		Dimo_ht_data.pack_type=0x04;//data_buffer[2];//此处2015-01-12改动
+		Dimo_ht_data.state=data_buffer[5];
+		Dimo_ht_data.Data_Buffer[0]=data_buffer[0];
+		Dimo_ht_data.Data_Buffer[1]=data_buffer[1];
+		Dimo_ht_data.Data_Buffer[2]=data_buffer[2];
+		Dimo_ht_data.Data_Buffer[3]=data_buffer[3];
+		Dimo_ht_data.Data_Buffer[4]=data_buffer[4];
+		Dimo_ht_data.Data_Buffer[5]=data_buffer[5];
+		Dimo_ht_data.Data_Buffer[6]=data_buffer[6];
+		Dimo_ht_data.Data_Buffer[7]=data_buffer[7];
+		Dimo_ht_data.Data_Buffer[8]=data_buffer[8];
+		Dimo_ht_data.Data_Buffer[9]=data_buffer[9];
+	    Dimo_ht_data.addr =addr2;
+		if (SERVER_MODE == 2)  
+			send(upload_buffer.sock_mux,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0);    
+		send(upload_buffer.sock,(char_ptr)(&Dimo_ht_data.Dicor_UID[0]), sizeof(DIMO_HT_DATA), 0); 			
 		_time_delay(1000*retry);
 		return -1;
 	}

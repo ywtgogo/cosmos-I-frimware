@@ -328,120 +328,113 @@ void SYS_Init(void)
 // At this stage, we don't handle priority and time slice, if necessary,we implemente them.
 void SYS_MainFunction(void)  
 {
-  UINT_8  i,n;
-  SYS_MESSAGE msg;
+	UINT_8  i,n;
+	SYS_MESSAGE msg;
 	_watchdog_start(3600000);
-  //init system timer
-  SYS_TimerInit();
-   //init message list
-  _LowMsgHead  = 0;
-  _LowMsgTail  = 0;
-  _LowCurSizes = 0;
-  for(i = 0; i< EMN_TASK_MAX; i++)
-  {
-      (*SYS_TaskTable[i].task_init)();
-  }
+	SYS_TimerInit();
+	_LowMsgHead  = 0;
+	_LowMsgTail  = 0;
+	_LowCurSizes = 0;
+	for(i = 0; i< EMN_TASK_MAX; i++)
+	{
+		(*SYS_TaskTable[i].task_init)();
+	}
 #if DICOR_STATIC_REG_TAB
-  DEBUG_DIS(printf("\nRF_int end"));
-//  dicor_rf_signal(RF_REG_END);  
+	DEBUG_DIS(printf("\nRF_int end"));
+	//  dicor_rf_signal(RF_REG_END);  
 #endif   
+	if (_watchdog_create_component(BSP_TIMER_INTERRUPT_VECTOR,Wacthdog_Error)!= MQX_OK) 	
+	{ 
+		printf("RF task create watchdog failed !");
+	}
+	ParaData0.brd=0x00;
+	ParaData0.index=0x4;
+	ParaData0.len=0x01;
+	ParaData0.dev=0x01;
+	for(i=0;i<ParaData0.len;i++)
+	ParaData0.data[i]=0x03;
+	//EMN_APL_GetParameter(0x00,0x01,&ParaData0);
+	EMN_APL_GetSampleData();
+	_watchdog_stop();
+	//send message to start set data
+	/*EMN_SendMsg.dest_id= EMN_APL_TASK;
+	EMN_SendMsg.msg_id =EMN_NWK_START_GET_DATA;
+	SYS_SendMsg(&EMN_SendMsg);*/
+	upload_buffer.state=WRITTING;
+	_watchdog_start(60*60*1000);
+	//_watchdog_start(60*5*1000);
+	_lwsem_create(&NetworkRfSem, 1);
 
- //create timer for softeware watchdog
- //
-// if (_watchdog_create_component(MCF5225_INT_SWT,Wacthdog_Error)!= MQX_OK)
- if (_watchdog_create_component(BSP_TIMER_INTERRUPT_VECTOR,Wacthdog_Error)!= MQX_OK) 	
- { 
-   printf("RF task create watchdog failed !");
- }
- ParaData0.brd=0x00;
- ParaData0.index=0x4;
- ParaData0.len=0x01;
- ParaData0.dev=0x01;
- for(i=0;i<ParaData0.len;i++)
- ParaData0.data[i]=0x03;
- //EMN_APL_GetParameter(0x00,0x01,&ParaData0);
- EMN_APL_GetSampleData();
- _watchdog_stop();
- //send message to start set data
- /*EMN_SendMsg.dest_id= EMN_APL_TASK;
- EMN_SendMsg.msg_id =EMN_NWK_START_GET_DATA;
- SYS_SendMsg(&EMN_SendMsg);*/
- upload_buffer.state=WRITTING;
- //_watchdog_start(30000);
- _watchdog_start(60*60*1000);
-//task switch and handle
-//  _time_delay(1000*10);	// test watchdog
-
-//用于和shell同步
-  _lwsem_create(&NetworkRfSem, 1);
-  
   while(1)
-  {
-	
-//	dicor_low_vol_chk();	//低电压检测，放在优先级最高的任务里	
-		//_lwsem_wait(&rfnet_sem);
+  {	
+//  	while(1)
+//  	{
+//  		_time_delay(1000);	 		
+//  	}
+	//	dicor_low_vol_chk();	//低电压检测，放在优先级最高的任务里	
+	//_lwsem_wait(&rfnet_sem);
 	_lwsem_wait(&NetworkRfSem);
 	while((_LowCurSizes != 0)||( SYS_Timers.timeout != 0)||(RF_RxReady ==1))
 	{
-      if(_LowCurSizes != 0)
-      {
-          if(_LowMsgList[_LowMsgHead].dest_id >= EMN_TASK_MAX)
-          {
-              SYS_Error(2);
-          }
-		  SYS_TaskTable[_LowMsgList[_LowMsgHead].dest_id].task_fun(&(_LowMsgList[_LowMsgHead]));
-		  _LowCurSizes--;
-		  if((++_LowMsgHead)==SYS_LOW_MESSAGE_MAX_NUM)
-		  {
-		      _LowMsgHead = 0;
-		  }
-
-      }
-      if(RF_RxReady ==1)
-	  {
-		// directly 
-		 msg.dest_id = EMN_PHY_TASK;
-		 msg.msg_id = EMN_RF_RX_READY;	
-		 RF_PhyGetDataEnd=0;
-		 #if 0
-		 SYS_TaskTable[EMN_PHY_TASK].task_fun(&msg);
-		 #else
-         RF_PhyGetDataEnd=0;
-         SYS_SendMsg(&msg);
-		 RF_RxReady =0;	
-		 #endif
-	  }
+		if(_LowCurSizes != 0)
+		{
+			if(_LowMsgList[_LowMsgHead].dest_id >= EMN_TASK_MAX)
+			{
+			  SYS_Error(2);
+			}
+			SYS_TaskTable[_LowMsgList[_LowMsgHead].dest_id].task_fun(&(_LowMsgList[_LowMsgHead]));
+			_LowCurSizes--;
+			if((++_LowMsgHead)==SYS_LOW_MESSAGE_MAX_NUM)
+			{
+			  _LowMsgHead = 0;
+			}
+		}
+		if(RF_RxReady ==1)
+		{
+			msg.dest_id = EMN_PHY_TASK;
+			msg.msg_id = EMN_RF_RX_READY;	
+			RF_PhyGetDataEnd=0;
+		#if 0
+			SYS_TaskTable[EMN_PHY_TASK].task_fun(&msg);
+		#else
+			RF_PhyGetDataEnd=0;
+			SYS_SendMsg(&msg);
+			RF_RxReady =0;	
+		#endif
+		}
 #if 0	  
-	  if(upload_buffer.state==CAN_WRITE)
-	  {
+		if(upload_buffer.state==CAN_WRITE)
+		{
 #if DICOR_STATIC_REG_TAB
-    {
-      EMN_SendMsg.dest_id= EMN_APL_TASK;
-      EMN_SendMsg.msg_id =EMN_NWK_START_GET_DATA;
-      SYS_SendMsg(&EMN_SendMsg);
-      upload_buffer.state=WRITTING;
-    }
+			{
+				EMN_SendMsg.dest_id= EMN_APL_TASK;
+				EMN_SendMsg.msg_id =EMN_NWK_START_GET_DATA;
+				SYS_SendMsg(&EMN_SendMsg);
+				upload_buffer.state=WRITTING;
+			}
 #else
-	    if(rfnwk_state== RF_NWK_DIS)
-	    {
-               upload_buffer.state=CAN_READ;
-		//	   dicor_rf_signal(RF_GET_DATA_END);
-		       DEBUG_DIS(printf("\nend data:no"));			  
-	    }else if( rfnwk_state== RF_NWK_REGING)
-	      {   if(NoRegTimes!=0)
-	    	  {
-                 EMN_MAC_DisNetwork();
-			     rfnwk_state= RF_NWK_REGING1;
-	    	   }  
-	      }else if( rfnwk_state!= RF_NWK_REGING1)
-	        {
-       	      EMN_SendMsg.dest_id= EMN_APL_TASK;
-              EMN_SendMsg.msg_id =EMN_NWK_START_GET_DATA;
-              SYS_SendMsg(&EMN_SendMsg);
-		      upload_buffer.state=WRITTING;
-	        }
+		    if(rfnwk_state== RF_NWK_DIS)
+		    {
+				upload_buffer.state=CAN_READ;
+				DEBUG_DIS(printf("\nend data:no"));			  
+		    }
+		    else if( rfnwk_state== RF_NWK_REGING)
+		    {   
+		      	if(NoRegTimes!=0)
+		    	  {
+	                 EMN_MAC_DisNetwork();
+				     rfnwk_state= RF_NWK_REGING1;
+		    	   }  
+		    }
+		    else if( rfnwk_state!= RF_NWK_REGING1)
+			{
+				EMN_SendMsg.dest_id= EMN_APL_TASK;
+				EMN_SendMsg.msg_id =EMN_NWK_START_GET_DATA;
+				SYS_SendMsg(&EMN_SendMsg);
+				upload_buffer.state=WRITTING;
+			}
 #endif		  
-	  }
+	  	}
 #endif 	  
 	  if( SYS_Timers.timeout != 0)
 	  {
@@ -476,8 +469,8 @@ void SYS_MainFunction(void)
     		}
 	  	}
 	  }
-		}
-			_lwsem_post(&NetworkRfSem); 
+	}
+	_lwsem_post(&NetworkRfSem); 
 	dicor_waite_rf(RFNET_EVENT,50);
   } 
 }

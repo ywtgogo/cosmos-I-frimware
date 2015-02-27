@@ -126,28 +126,30 @@ static void GetEepromBaseAddr(void)
 void EepromWrite(uchar_ptr write_buffer, _mem_size seek_location, _mem_size read_write_size)
 {
 	_mqx_int	result;  
+	printf ("---write flashx---\n");
 	flash_hdl = flash_open(FLASH_NAME);
-	printf ("---write flashx 1---\n");
+//	printf ("---write flashx 1---\n");
 	_io_ioctl(flash_hdl, FLASH_IOCTL_ENABLE_SECTOR_CACHE, NULL); 
-	printf ("---write flashx 2---\n");
+//	printf ("---write flashx 2---\n");
 	fseek(flash_hdl, seek_location, IO_SEEK_SET);
-	printf ("---write flashx 3---\n");
+//	printf ("---write flashx 3---\n");
 	result = write(flash_hdl, write_buffer, read_write_size );
-	printf ("---write flashx 4--\n");
+//	printf ("---write flashx 4--\n");
 	flash_close(flash_hdl);
 }
 
 void EepromRead(uchar_ptr read_buffer, _mem_size seek_location, _mem_size read_write_size)
 {
    	_mqx_int	result;
+   	printf ("---read flashx---\n");
    	flash_hdl = flash_open(FLASH_NAME);
-   	printf ("---read flashx 1---\n");
+// 	printf ("---read flashx 1---\n");
    	_io_ioctl(flash_hdl, FLASH_IOCTL_ENABLE_SECTOR_CACHE, NULL); 
-   	printf ("---read flashx 2---\n");
+// 	printf ("---read flashx 2---\n");
 	fseek(flash_hdl, seek_location, IO_SEEK_SET);
-	printf ("---read flashx 3---\n");
+//	printf ("---read flashx 3---\n");
 	result = read(flash_hdl, read_buffer, read_write_size );
-	printf ("---read flashx 4---\n");
+//	printf ("---read flashx 4---\n");
 	flash_close(flash_hdl);
 }
 
@@ -181,14 +183,14 @@ void ChkEepromFirstUse(void)
 		baseconfig->dhcp = 1;
 		baseconfig->enabledns = 0;
 		baseconfig->enablesntp = 0;
-		baseconfig->datacenter[0] = 192;
-		baseconfig->datacentermux[0] = 192;
-		baseconfig->datacenter[1] = 168;
-		baseconfig->datacentermux[1] = 168;
-		baseconfig->datacenter[2] = 8;
-		baseconfig->datacentermux[2] = 8;
-		baseconfig->datacenter[3] = 240;
-		baseconfig->datacentermux[3] = 240;
+		baseconfig->datacenter[0] = 115;
+		baseconfig->datacentermux[0] = 115;
+		baseconfig->datacenter[1] = 29;
+		baseconfig->datacentermux[1] = 29;
+		baseconfig->datacenter[2] = 192;
+		baseconfig->datacentermux[2] = 192;
+		baseconfig->datacenter[3] = 154;
+		baseconfig->datacentermux[3] = 154;
 		baseconfig->ipport[0] = 0;
 		baseconfig->ipportmux[0] = 0;
 		baseconfig->ipport[1] = 0;

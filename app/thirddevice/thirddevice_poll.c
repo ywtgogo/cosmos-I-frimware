@@ -29,7 +29,7 @@ extern THIRD_DEVICE_DATA_ST* g_pThirdDeviceData;
 //创建设备链表
 static THIRDDEVICELINK* create_third_dev_link_node(thirddev_poll_list_entry_t* poll_list, Third_Dev_Poll_Timer* poll_timer)  
 {  
-    THIRDDEVICELINK* pLinkNode = NULL;  
+    THIRDDEVICELINK* pLinkNode = NULL;
     
     pLinkNode = (THIRDDEVICELINK*)_mem_alloc_zero_from(_user_pool_id, sizeof(THIRDDEVICELINK));  
     if (NULL == pLinkNode)
@@ -150,25 +150,6 @@ void Third_Device_Timer_Inc(void)
 		pNode->poll_timer->cur++;
 		pNode = pNode->next;
 	}
-	 //	printf("RESET CC2530");
-	     
-	    //  fclose(rs485_dev);
-	     // clearerr(rs485_dev);
-	     // rs485_dev = NULL;
-	     //	fflush( rs485_dev);
-	     //	fclose( (pointer) (IO_SERIAL_NON_BLOCKING) );  
-	     //  N_RESET_CC2530();
-	       
-	      //  uart1_dev  = fopen(UART1_CHANNEL, NULL );  
-	       
-	       // fflush(uart1_dev);
-	       // N_RESET_CC2530();
-	    
-	    
-	    //	_time_delay(3000);
-	     
-	      // rs485_init();
-	      // RESET_CC2530();
 }
 
 //轮询所有的第三方设备

@@ -38,8 +38,14 @@
 	#define DEBUG_DIS(x)
 #endif
 
+#define		WD_START_H		60*60*1000
+#define 	WD_FEED_H		60*60*1000
+#define 	WD_FEED_30M		30*60*1000
+#define 	WD_FEED_10M		10*60*1000
+#define		WD_FEED_M		   60*1000
+
 #define     COODADDRDEFAULT                 0x01
-#define 	SOFTVERSION						{3, 7, 4}			//软件版本号
+#define 	SOFTVERSION						{3, 8, 6}			//软件版本号
 //3.4.0改变：Bootloader升级DiDi。取得功率软件版本和通信软件版本
 //3.4.1改变：将部分任务空间栈分配到外部RAM中
 //3.4.2改变：增加支出8245 DiDi的升级,增加修改UID显示告警及修改格式提示。
@@ -93,7 +99,7 @@
 
 
 
-#define DICOR_STATIC_REG_TAB                1   
+#define DICOR_STATIC_REG_TAB                0//1 2015-01-07   
 
 #define DICOR_ACK_RESEND                    1 
 

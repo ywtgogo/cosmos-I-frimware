@@ -55,14 +55,18 @@ void GATEWAY_ReadData(void *ptr)
 	addr1 = addr2;
 	num_node=pThirdData->num_node;
 
-//	_time_delay(1000);
-
-//  OPTIMUS_SYNC_Command(addr1,data_buffer);
+	OPTIMUS_SYNC_Command(addr1,data_buffer);
 
 	Modbus_SendStartCommand(addr1,data_buffer);
 
 	Read_Data_Command( addr1,data_buffer,GATEWAY_REGISTER_START_ADDR, num_node);		//全部20个寄存器
-	result = Modbus_RecvReadRegData(addr2, data_buffer, (uint_8*)pGatewayData);  
+	result = Modbus_RecvReadRegData(addr2, data_buffer, (uint_8*)pGatewayData);  		//pGatewayData的数据格式
+	if (result != 0)		//若0x04命令返回错误，将不上传下面的51个数据到服务器，而是继续执行下一次轮询
+	{
+		printf("\n0x04接收错误\n");
+		return ;	
+	}
+	
 
 	pThirdData = (THIRD_DEVICE_DATA_ST*)ptr;
 	data_buffer = RS485_Data_Buffer;

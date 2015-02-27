@@ -148,6 +148,33 @@ static void dicor_low_vol_task(void)
 	
 }
 
+static void check_repair_button(void)
+{
+	extern void LED2RED_blik(void);
+	static char check_button_delay=3;
+    MCF_GPIO_PNQPAR=0x0000;
+    MCF_GPIO_DDRNQ=0x00; 	
+	
+	
+	if (~MCF_GPIO_SETNQ & 0x80)
+	{
+		//_time_delay(1000);
+		//check_button_delay--
+		//if (~MCF_GPIO_SETNQ & 0x80)
+		if (0 == check_button_delay--)
+		{
+			printf("BUTTON ON~~~!\n");
+			LED2RED_blik();
+			check_button_delay = 3;
+		}	
+	}
+	else
+	{
+		check_button_delay = 3;	
+	}
+		
+}
+
 void dicor_watchdog_task(uint_32 initial_data)
 {
 	DATE_STRUCT date;
@@ -172,7 +199,8 @@ void dicor_watchdog_task(uint_32 initial_data)
 			_lwsem_wait(&pDiCorLog->writesem);
 			reboot(); // by younger 2013.7.1
 		}
-		_time_delay(100);
+		_time_delay(1000);
+		check_repair_button();		
 	}
 }
 

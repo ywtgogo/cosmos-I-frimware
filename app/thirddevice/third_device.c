@@ -30,7 +30,7 @@
 
 THIRD_DEVICE_DATA_ST* g_pThirdDeviceData;
 extern _mem_pool_id _user_pool_id;
-
+//extern uchar Pulldown_Cc2530_flag;
 
 //int_8 Collect_Acrel_PZ80_All_Data(uint_8 addr, uint_8* data_buffer, ACREL_PZ80_DATA* pData);
 
@@ -311,9 +311,16 @@ static int_8 AnalysisThirdDevConfigFile(THIRD_DEVICE_SDCARD_INFO* pInfo)
 //从SD卡中加载第三方设备信息
 static int_8 LoadThirdDevFormSDCard(void)
 {
-	int_8 count;
+	unsigned char count;
+//	int_32 i;
+//	int_8 infolen=48;
+//	unsigned char buf[256];
 	THIRD_DEVICE_SDCARD_INFO* ThirdDevSdcardInfo;
-	
+//	THIRD_DEVICE_SDCARD_INFO* bufThirdDevSdcardInfo;
+//	unsigned char *buf_ptr;
+//	buf_ptr = _mem_alloc_zero(infolen);
+//	memset(buf_ptr, 0, sizeof(THIRD_DEVICE_SDCARD_INFO));
+		
 	Init_ThirdDevLinkNode();
 	ThirdDevSdcardInfo = (THIRD_DEVICE_SDCARD_INFO *) _mem_alloc_zero_from(_user_pool_id, sizeof(THIRD_DEVICE_SDCARD_INFO)*THIRDDEV_CFG_POLL_MAX);
 	if (ThirdDevSdcardInfo == NULL)
@@ -323,16 +330,39 @@ static int_8 LoadThirdDevFormSDCard(void)
 	}
 	memset(ThirdDevSdcardInfo, 0, sizeof(THIRD_DEVICE_SDCARD_INFO));
 	
-	count = AnalysisThirdDevConfigFile(ThirdDevSdcardInfo);
+	count = AnalysisThirdDevConfigFile(ThirdDevSdcardInfo);	
+//	printf("\nfile=%s,func=%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);
+//	printf("\n%s\n", ThirdDevSdcardInfo);
+//	printf("\n%d\n", sizeof(THIRD_DEVICE_SDCARD_INFO)*THIRDDEV_CFG_POLL_MAX);
+//	memset(buf_ptr, 0, sizeof(THIRD_DEVICE_SDCARD_INFO));	
+//	buf_ptr = (unsigned char *)ThirdDevSdcardInfo;
+//	for (i=0; i<infolen; i++)
+//	{
+//		printf("%02x", buf_ptr[i]);
+//	}		
 	if (count == -1)
 	{
-		printf("解析第三方设备的配置文本文件时发送错误\n");
-		_mem_free(ThirdDevSdcardInfo);
-		return -1;
+//		printf("解析第三方设备的配置文本文件时发送错误\n");
+//		EepromRead(&count, 262, 1);
+//		if (count = 0)
+//		{
+			_mem_free(ThirdDevSdcardInfo);
+			return -1;	
+//		}		
+//		EepromRead(buf, 263, infolen);
+//		ThirdDevSdcardInfo = (THIRD_DEVICE_SDCARD_INFO*)buf;
 	}
 	else
 	{
 		printf("成功解析！找到设备个数%d\n", count);
+//		EepromWrite(&count, 262, 1);
+//		EepromWrite((unsigned char *)ThirdDevSdcardInfo, 263, infolen);
+//		EepromRead(buf, 262, infolen+1);
+//		bufThirdDevSdcardInfo = (THIRD_DEVICE_SDCARD_INFO*)buf;
+//		for(i=0; i<infolen+1; i++)
+//		{
+//			printf("%02x", buf[i]);
+//		}
 	}
 	if (register_all_third_device(ThirdDevSdcardInfo, count) == 0)
 	{

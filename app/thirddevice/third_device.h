@@ -41,6 +41,17 @@ typedef struct
 	uint_32 period;
 }THIRD_DEVICE_SDCARD_INFO;
 
+typedef struct
+{
+	uint_8 count;
+	uint_8 order;
+	uint_8 dev_type;
+	uint_8 dev_code;
+	uint_16 dev_id;
+	uint_16 num_node;
+	uint_32 period;		
+}THIRD_DEVICE_EEPROM_INFO;
+//ThirdDevSdcardInfo或直接存入eeprom，取出来后验证
 
 
 void ThirdDevicPreDataFinish(void);

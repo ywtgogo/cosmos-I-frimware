@@ -21,6 +21,63 @@ static MCF5225_GPIO_STRUCT_PTR led_gpio_ptr;
 //#define UART2_CHANNEL "ttyc:"
 //MQX_FILE_PTR uart2_dev = NULL;
 volatile uchar RFLedNum = 0; 
+volatile uint_32 int_counter;
+void int_callback(void);
+
+void int_callback(void) 
+{
+    int_counter++;
+    printf("int_counter = %d\n", int_counter);
+}
+
+void RepairModeInit(void)
+{
+	MQX_FILE_PTR	port_file4;
+    GPIO_PIN_STRUCT pins_int[] = {
+        BSP_BUTTON_REPAIR | GPIO_PIN_IRQ_ZERO,
+        GPIO_LIST_END
+    };
+	printf("\nport_file4 initing!\n");
+    /* opening pins/signals for input */
+    if (NULL == (port_file4 = fopen("gpio:read", (char_ptr) &pins_int )))
+    {
+       printf("Opening file4 GPIO with associated pins failed.\n");
+      _mqx_exit(-1);
+    }
+	printf("\nport_file4 inited!\n");
+
+    /* install gpio interrupt callback */
+    ioctl(port_file4, GPIO_IOCTL_SET_IRQ_FUNCTION, int_callback);
+	printf("\n—Ω£ø\n");
+	//ioctl(port_file4, GPIO_IOCTL_ENABLE_IRQ, int_callback);
+	
+//    while (int_counter < 5);
+    
+    fclose(port_file4);		
+/*
+//	printf("BUTTON ON!\n");	
+//	led_gpio_ptr->PNQPAR &= 0x3FFF;
+//	led_gpio_ptr->DDRNQ &= 0x7F;
+    MCF_GPIO_PNQPAR=0x0000;
+    MCF_GPIO_DDRNQ=0x00; 	
+//	printf("BUTTON ON!\n");
+//	while(1)
+	{
+		_time_delay(10);
+		//printf("BUTTON ON! 0x%04x\n", MCF_GPIO_SETNQ);
+		if (~MCF_GPIO_SETNQ & 0x80)
+		{
+			_time_delay(1000);
+			if (~MCF_GPIO_SETNQ & 0x80)
+			{
+				printf("BUTTON ON~~~!\n");
+				LED2RED_blik();
+			}				
+		}
+	}
+*/
+
+}
 
 void LedInit(void)
 {
@@ -39,8 +96,7 @@ void LedInit(void)
 	
 	led_gpio_ptr->PTAPAR &= 0x3F;	//D28-PTA3
 	led_gpio_ptr->DDRTA |= 0x08;
-	
-	
+		
 	AllLedOff();
 	
 }
@@ -80,6 +136,40 @@ void AllLedOff(void)
 	SET_LED9;
 }
 
+void LED2RED_off(void)
+{
+	led_gpio_ptr->PUAPAR &= 0xcF;
+	led_gpio_ptr->DDRUA |= 0x04;
+	LED2RED_OFF;
+}
+
+void LED2RED_on(void)
+{
+	led_gpio_ptr->PUAPAR &= 0xcF;
+	led_gpio_ptr->DDRUA |= 0x04;
+	LED2RED_ON;
+}
+
+void LED2RED_blik(void)
+{
+	led_gpio_ptr->PUAPAR &= 0xcF;
+	led_gpio_ptr->DDRUA |= 0x04;
+	LED2RED_BLIK;
+}
+
+void LED2GREEN_off(void)
+{
+	led_gpio_ptr->PUAPAR &= 0x3F;
+	led_gpio_ptr->DDRUA |= 0x08;//(0x04|(0x01<<3));
+	LED2GREEN_OFF;
+}
+
+void LED2GREEN_on(void)
+{
+	led_gpio_ptr->PUAPAR &= 0x3F;
+	led_gpio_ptr->DDRUA |= 0x08;
+	LED2GREEN_ON;
+}
 
 void RfLedOn(void)
 {

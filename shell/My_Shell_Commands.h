@@ -1,7 +1,9 @@
 #ifndef __sh_my_h__
 #define __sh_my_h__
 
-
+extern int_32 Shell_get_time();
+extern int_32 Shell_get_zone();
+extern int_32 Shell_set_zone(int_32 argc, char_ptr argv[]);
 extern int_32 Shell_setrtc(int_32 argc, char_ptr argv[]); 
 extern int_32 Shell_getrtc(int_32 argc, char_ptr argv[]); 
 extern int_32 Shell_wall(int_32 argc, char_ptr argv[]);
@@ -16,6 +18,11 @@ extern int_32 Shell_pbaseconfig(int_32 argc, char_ptr argv[]);
 extern int_32 Shell_rbaseconfig(int_32 argc, char_ptr argv[]);
 extern int_32 Shell_rthirddevicetable(int_32 argc, char_ptr argv[]);
 extern int_32 Shell_setdatacenter(int_32 argc, char_ptr argv[]);
+extern int_32 Shell_setport(int_32 argc, char_ptr argv[]);
+extern int_32 Shell_setdatacentermux(int_32 argc, char_ptr argv[]);
+extern int_32 Shell_setportmux(int_32 argc, char_ptr argv[]);
+
+
 extern int_32 Shell_rregtable(int_32 argc, char_ptr argv[]);
 extern int_32 Shell_wroutertable(int_32 argc, char_ptr argv[]);
 extern int_32 Shell_proutertable(int_32 argc, char_ptr argv[]);

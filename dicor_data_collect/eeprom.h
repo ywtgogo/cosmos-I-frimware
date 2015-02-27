@@ -66,7 +66,6 @@ typedef struct
 	
 } EEPROMDATA, _PTR_  EEPROMDATA_PTR;
 
-
 //基本配置信息的结构分配
 typedef struct
 {
@@ -90,16 +89,24 @@ typedef struct
 	unsigned char datacenter[4];	//236
 	unsigned char ipport[4];		//240
 	unsigned char datacentermux[4];	//244
-	unsigned char ipportmux[4];
-	unsigned char net_addr;
-	unsigned char subnet_num;
-	unsigned char subdev_num;
-	unsigned char work_mode;
-	unsigned char rffreq[4];
-	unsigned char rfpower;
-	unsigned char reserve[BASECONFIGSIZE-1-1-1-1-4-4-40-40-40-40-40-4-4-4-4-1-1-1-1-4-4-4-4-5];
+	unsigned char ipportmux[4];		//248
+	unsigned char net_addr;			//252
+	unsigned char subnet_num;		//253
+	unsigned char subdev_num;		//254
+	unsigned char work_mode;		//256
+	unsigned char rffreq[4];		//257
+	unsigned char rfpower;			//261
+	unsigned char nodecount;		//262
+	unsigned char nodeinfo[48];		//263
+	unsigned char reserve[BASECONFIGSIZE-311];//262//1-1-1-1-4-4-40-40-40-40-40-4-4-4-4-1-1-1-1-4-4-4-4-5];//253
+	unsigned char zone;
 	
 } BASECONFIGTABLE, _PTR_ BASECONFIGTABLE_PTR;
+
+//typedef struct
+//{
+//	
+//};
 
 typedef struct
 {
